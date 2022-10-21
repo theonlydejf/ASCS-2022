@@ -1,0 +1,28 @@
+{
+    "robot-observer":
+    {
+        "detector-rscs-path": "/Users/david/Documents/MAP/robot_detector.rscs",
+        "camera-server": 
+        {
+            "port": 1111,
+            "host": "localhost"
+        },
+        "calib":
+        {
+            "tag":
+            {
+                "family": "tag25h9",
+                "size": 100
+            },
+            "rectangle":
+            {
+                "width": 2340,
+                "height": 1120,
+                "top-left-tag": 1,
+                "top-right-tag": 2,
+                "bottom-left-tag": 3,
+                "bottom-right-tag": 4
+            }
+        }
+    }
+}
