@@ -87,4 +87,10 @@ class ReceiverTest implements TDNReceiverListener
 		System.out.println(sb.toString() + ")");
 	}
 
+    @Override
+    public void tdnSenderConnected() {
+        // TODO Auto-generated method stub
+        
+    }
+
 }

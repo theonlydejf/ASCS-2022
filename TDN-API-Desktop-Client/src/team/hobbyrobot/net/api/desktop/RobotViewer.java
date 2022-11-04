@@ -12,8 +12,10 @@ import org.json.simple.JSONObject;
 import team.hobbyrobot.graphics.PaintPanel;
 import team.hobbyrobot.graphics.Paintable;
 import team.hobbyrobot.python.BridgeListener;
+import team.hobbyrobot.robotobserver.RobotObserver;
+import team.hobbyrobot.robotobserver.RobotObserverListener;
 
-public class RobotViewer extends PaintPanel implements BridgeListener
+public class RobotViewer extends PaintPanel implements RobotObserverListener
 {
 	private Object _robotsLock = new Object();
 	private JSONArray _robots = null;
@@ -21,12 +23,15 @@ public class RobotViewer extends PaintPanel implements BridgeListener
 	private static final Font errFont = new Font(Font.SANS_SERIF, Font.BOLD, 14);
 	private static final Font robotFont = new Font(Font.MONOSPACED, Font.PLAIN, 10);
 	
-	public double scale = 1;
+	private double _scale = 1;
+	private double _realWidth;
 	
-	public RobotViewer()
+	public RobotViewer(RobotObserver observer, double realWidth)
 	{
 		super();
+		_realWidth = realWidth;
 		addLayer(new Graphics());
+		observer.addListener(this);
 	}
 	
 	private class Graphics implements Paintable
@@ -35,9 +40,11 @@ public class RobotViewer extends PaintPanel implements BridgeListener
 		@Override
 		public void paint(Graphics2D g)
 		{
+		    
+		    _scale = RobotViewer.this.getWidth() / _realWidth;
 			if(_robots == null || _robots.size() <= 0)
 			{
-				drawCenteredString(g, "NO ROBOTS FOUND", RobotViewer.this.getBounds(), errFont, Color.red);
+				drawCenteredString(g, "NO ROBOTS FOUND", new Rectangle(0, 0, RobotViewer.this.getWidth(), RobotViewer.this.getHeight()), errFont, Color.red);
 				return;
 			}
 			
@@ -51,8 +58,8 @@ public class RobotViewer extends PaintPanel implements BridgeListener
 				
 				double heading_rad = heading/180 * Math.PI;
 				
-				x *= scale;
-				y *= scale;
+				x *= _scale;
+				y *= _scale;
 				
 				g.setColor(Color.black);
 				g.fillOval((int)(x - 5), (int)(y - 5), 10, 10);
@@ -85,10 +92,10 @@ public class RobotViewer extends PaintPanel implements BridgeListener
 		
 	}
 
-	@Override
-	public void dataReceived(JSONObject object)
-	{
-		_robots = (JSONArray) object.get("robots");
-		repaint();
-	}
+    @Override
+    public void robotsReceived(JSONArray robots) 
+    {
+        _robots = robots;
+        repaint();
+    }
 }

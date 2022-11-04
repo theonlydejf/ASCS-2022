@@ -18,7 +18,7 @@ import team.hobbyrobot.net.api.streaming.TDNSender;
 import team.hobbyrobot.python.Bridge;
 import team.hobbyrobot.robotobserver.*;
 
-public class StorageObserverWindow extends JFrame implements RobotObserverListener 
+public class StorageObserverWindow extends JFrame 
 {
     static final String settingsPath = "/Users/david/Documents/MAP/ascs-settings.json";
 
@@ -47,7 +47,10 @@ public class StorageObserverWindow extends JFrame implements RobotObserverListen
         Bridge bridge = new Bridge((String) cameraServerStg.get("host"), (int) (long) cameraServerStg.get("port"));
         bridge.start();
 
-        _tdnSender = new TDNSender("192.168.1.101", 3333);
+        RobotObserver observer = new RobotObserver(bridge);
+        RobotCorrector corrector = new RobotCorrector(observer);
+        _tdnSender = new TDNSender("localhost", 3333);
+        _robotViewer = new RobotViewer(observer, 2340);
 
         JButton btn = new JButton();
         btn.setLocation(0,  0);
@@ -55,7 +58,8 @@ public class StorageObserverWindow extends JFrame implements RobotObserverListen
         btn.addActionListener(e -> {
             try 
             {
-                _tdnSender.connect();
+                corrector.startCorrectingRobot(_tdnSender, 0);
+                btn.setEnabled(false);
             } 
             catch (IOException e1) 
             {
@@ -63,25 +67,19 @@ public class StorageObserverWindow extends JFrame implements RobotObserverListen
             }
         });
         
-        RobotObserver observer = new RobotObserver(bridge);
-        observer.addListener(this);
 
+        
         setLayout(new BorderLayout());
         setTitle("Storage Observer Client");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setResizable(false);
 
-        _robotViewer = new RobotViewer();
-        bridge.addListener(_robotViewer);
-        double scale = .5;
         double w = 2340;
         double h = 1120;
-        _robotViewer.setPreferredSize(new Dimension((int) (w * scale), (int) (h * scale)));
+        _robotViewer.setPreferredSize(new Dimension((int) (w * .3f), (int) (h * .3f)));
         
         getContentPane().add(_robotViewer);
         _robotViewer.add(btn);
-        
-        _robotViewer.scale = scale;
         // _paintPanel.addMouseListener(this);
 
         pack();
@@ -90,46 +88,5 @@ public class StorageObserverWindow extends JFrame implements RobotObserverListen
 
         setVisible(true);
 
-    }
-    
-    long millis = System.currentTimeMillis();
-    @Override
-    public void robotsReceived(JSONArray robots) 
-    {
-        if(!_tdnSender.isConnected())
-            return;
-        
-        RobotModel robot = null;     
-        String json = "";
-        System.out.println("robot received");
-        for(Object obj : robots)
-        {
-            JSONObject robotJSON = (JSONObject) obj;
-            if((long)robotJSON.get("id") == 5l)
-            {
-                System.out.println("FOUND!");
-                robot = RobotModel.fromJSON(robotJSON);
-                json = robotJSON.toJSONString();
-                break;
-            }
-        }
-        
-        if(robot == null)
-            return;
-        
-        try 
-        {
-            if(System.currentTimeMillis() - millis >= 200)
-            {
-                _tdnSender.send(robot.toTDN());
-                System.out.println("sent: " + json);
-                millis = System.currentTimeMillis();
-            }
-        } 
-        catch (IOException e) 
-        {
-            e.printStackTrace();
-            System.err.println("Failed to send robot tdn data");
-        }
     }
 }

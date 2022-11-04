@@ -5,7 +5,7 @@ import json
 SETTINGS_PATH = "/Users/david/Documents/MAP/ascs-settings.json"
 
 stg_file = open(SETTINGS_PATH, "r")
-settings = json.load(stg_file)["storage-observer"]
+settings = json.load(stg_file)["robot-observer"]
 stg_file.close()
 # Extract camera server settings
 server_stg = settings["camera-server"]

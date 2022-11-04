@@ -63,7 +63,7 @@ public class EV3Gyroscope implements Gyroscope, SampleProvider, DirectionFinder
 		synchronized (_lastSample)
 		{
 			fetchSample();
-			_angleZero = (int) _lastSample[0] - angle;
+			_angleZero = (int) (_lastSample[0] - angle);
 		}
 	}
 

@@ -16,11 +16,15 @@ import lejos.hardware.lcd.GraphicsLCD;
 import lejos.robotics.chassis.Chassis;
 import lejos.robotics.chassis.Wheel;
 import lejos.robotics.chassis.WheeledChassis;
+import lejos.robotics.localization.PoseProvider;
 import lejos.robotics.navigation.MovePilot;
+import lejos.robotics.navigation.Pose;
 import lejos.robotics.navigation.RotateMoveController;
 import lejos.utility.Delay;
 import team.hobbyrobot.ascsvehicle.api.services.MovementService;
 import team.hobbyrobot.ascsvehicle.api.services.TestService;
+import team.hobbyrobot.ascsvehicle.navigation.TDNPoseCorrectionProvider;
+import team.hobbyrobot.ascsvehicle.navigation.TDNPoseCorrectionProviderListener;
 import team.hobbyrobot.ascsvehicle.os.APIStaticFactory;
 import team.hobbyrobot.ascsvehicle.os.ASCSVehicleHardware;
 import team.hobbyrobot.ascsvehicle.os.VehicleInfoBar;
@@ -39,11 +43,13 @@ import team.hobbyrobot.logging.VerbosityLogger;
 import team.hobbyrobot.subos.menu.MenuItem;
 import team.hobbyrobot.subos.menu.MenuScreen;
 import team.hobbyrobot.subos.menu.RobotInfoScreen;
+import team.hobbyrobot.subos.navigation.CorrectablePoseProvider;
+import team.hobbyrobot.subos.navigation.PoseCorrectionProvider;
 import team.hobbyrobot.net.api.TDNAPIServer;
 import team.hobbyrobot.tdn.base.*;
 import team.hobbyrobot.tdn.core.*;
 
-public class ASCSVehicle
+public class ASCSVehicle implements TDNPoseCorrectionProviderListener
 {
 	//@formatter:off
 	public static final MenuItem[] MainMenu = new MenuItem[] 
@@ -60,6 +66,8 @@ public class ASCSVehicle
 	public static Logger logger;
 
 	public static TDNAPIServer api = null;
+	
+	public static TDNPoseCorrectionProvider _correctionProvider = null;
 	
 	public static void main(String[] args) throws Exception
 	{
@@ -79,6 +87,9 @@ public class ASCSVehicle
 		//Dej najevo, že robot už je připraven k použití
 		BrickHardware.setLEDPattern(1, LEDBlinkingStyle.NONE, 0);
 		Sound.beepSequenceUp();
+		
+		_correctionProvider = (TDNPoseCorrectionProvider) ((CorrectablePoseProvider)Hardware.getPoseProvider()).getCorrectionProvider();
+		_correctionProvider.addListener(new ASCSVehicle());
 		
 		RotateMoveController pilot = Hardware.getPilot();
 		Hardware.resetDriveMotorsTachos();
@@ -116,12 +127,14 @@ public class ASCSVehicle
 		GraphicsController.refreshScreen();
 
 		logger.log("Waiting to start corrector...");
-		Button.waitForAnyPress();
 		Hardware.startCorrector();
 		
+		PoseProvider poseProvider = Hardware.getPoseProvider();
 		while (true)
 		{
 			Button.waitForAnyPress();
+			//Pose pose = poseProvider.getPose();
+			//logger.log("Current pose: " + pose.toString());
 			Hardware.resetGyroAt(0);
 			pilot.rotate(90);
 			Sound.beep();
@@ -193,5 +206,23 @@ public class ASCSVehicle
 		}
 		logger.log(sb.toString() + ")");
 	}
+
+	boolean updateExpectedHeading = true;
+    @Override
+    public void correctorConnected() 
+    {
+    }
+
+    @Override
+    public void correctionReceived(Pose newPose) 
+    {
+        if(updateExpectedHeading)
+        {
+            logger.log("setting expected heading...");
+            Hardware.setPilotExpectedHeading(Math.round(newPose.getHeading()));
+            updateExpectedHeading = false;
+            _correctionProvider.removeListener(this);
+        }
+    }
 
 }

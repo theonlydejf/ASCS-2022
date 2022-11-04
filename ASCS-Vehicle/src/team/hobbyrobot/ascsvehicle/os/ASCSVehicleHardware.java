@@ -49,7 +49,7 @@ public class ASCSVehicleHardware extends GyroRobotHardware
 {
 	@IncludeInRobotInfo
 	public int LifterUp = 0;
-	private RotateMoveController pilot = null;
+	private RotateMoveController _pilot = null;
 	private Chassis _chassis = null;
 	private EV3Gyroscope _gyro = null;
 	private PoseProvider _poseProvider = null;
@@ -209,9 +209,9 @@ public class ASCSVehicleHardware extends GyroRobotHardware
 
 	public RotateMoveController getPilot()
 	{
-		if (pilot == null)
+		if (_pilot == null)
 			createPilot();
-		return pilot;
+		return _pilot;
 	}
 
 	public Chassis getChassis()
@@ -251,6 +251,11 @@ public class ASCSVehicleHardware extends GyroRobotHardware
     {
         _corrector.stopServer();
     }
+    
+    public void setPilotExpectedHeading(int heading)
+    {
+        ((CompassPilot)_pilot).setExpectedHeading(heading);
+    }
 	
 	private void createChassis()
 	{
@@ -266,9 +271,9 @@ public class ASCSVehicleHardware extends GyroRobotHardware
 	private void createPilot()
 	{
 		//pilot = new MovePilot(getChassis());
-		pilot = new CompassPilot(this);
-		pilot.setAngularAcceleration(150);
-		pilot.setLinearAcceleration(100);
+		_pilot = new CompassPilot(this);
+		_pilot.setAngularAcceleration(150);
+		_pilot.setLinearAcceleration(100);
 	}
 	
 	private void createPoseProvider() throws IOException
@@ -276,8 +281,8 @@ public class ASCSVehicleHardware extends GyroRobotHardware
 		//_poseProvider = new OdometryPoseProvider(getPilot());
 		if (getPilot() != null && getDirectionFinder() != null)
 		{
-		    PoseProvider main = new CompassPoseProvider(getPilot(), getDirectionFinder());
-		    _corrector = new TDNPoseCorrectionProvider(Resources.global().getInt("servers.poseCorrectionPort"), pilot, false, ASCSVehicle.logger);
+		    PoseProvider main = new CorrectableCompassPoseProvider(getPilot(), _gyro);
+		    _corrector = new TDNPoseCorrectionProvider(Resources.global().getInt("servers.poseCorrectionPort"), getPilot(), false, ASCSVehicle.logger, 200);
 		    
 		    _poseProvider = new CorrectablePoseProvider(main, _corrector);
 		}

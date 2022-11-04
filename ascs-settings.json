@@ -16,13 +16,31 @@
             },
             "rectangle":
             {
-                "width": 2340,
-                "height": 1120,
+                "tag-margin": 14.29,
+                "width": 2360,
+                "height": 1140,
                 "top-left-tag": 1,
                 "top-right-tag": 2,
                 "bottom-left-tag": 3,
                 "bottom-right-tag": 4
             }
         }
-    }
+    },
+    "vehicles":
+    [
+        {
+            "id": 5,
+            "ip": "192.168.1.101",
+            "logger-port": 1111,
+            "api-port": 2222,
+            "pose-corrector-port": 3333
+        },
+        {
+            "id": 6,
+            "ip": "192.168.1.100",
+            "logger-port": 1111,
+            "api-port": 2222,
+            "pose-corrector-port": 3333
+        }
+    ]
 }

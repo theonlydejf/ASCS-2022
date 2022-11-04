@@ -16,7 +16,15 @@ import team.hobbyrobot.subos.hardware.GyroRobotHardware;
 import team.hobbyrobot.subos.hardware.RobotHardware;
 import temp.PIDTuner;
 
-public class MoveHandler implements MoveProvider
+/**
+ * Base class used to handle movements of a robot. You can register your move processors and associate
+ * them with perticular move types to the underlying 
+ * {@link team.hobbyrobot.subos.navigation.MoveHandler.Handler Handler}, which then takes care of
+ * notyfing MoveListeners and limiting them.
+ * 
+ * @author David Krcmar
+ */
+public abstract class MoveHandler implements MoveProvider
 {
 	/**
 	 * How often is motor controlled when regulated steering. Higher value means more precise regulation,

@@ -10,7 +10,7 @@ import team.hobbyrobot.tdn.core.TDNValue;
 
 public class ArrayParser implements TDNTypeParser
 {
-    private static final TDNTypeParser intParser = TDNParsers.INTEGER;
+    private static TDNTypeParser intParser = TDNParsers.INTEGER;
 
 	@Override
 	public String typeKey()
@@ -27,6 +27,9 @@ public class ArrayParser implements TDNTypeParser
 	@Override
 	public TDNValue readFromStream(TDNBufferedReader reader) throws IOException
 	{
+	    if(intParser == null)
+	        intParser = TDNParsers.INTEGER;
+	    
         int itemCnt = (int)intParser.readFromStream(reader).value;
         String itemType = reader.readValue();
         TDNTypeParser itemParser = reader.settings.parsers().get(itemType);

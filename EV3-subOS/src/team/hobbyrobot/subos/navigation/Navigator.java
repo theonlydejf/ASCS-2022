@@ -412,6 +412,8 @@ public class Navigator implements WaypointListener, MoveListener
 			_pose = poseProvider.getPose();
 		}
 
+		
+		
 		@Override
 		public void run()
 		{

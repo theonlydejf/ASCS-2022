@@ -24,8 +24,8 @@ def main():
     # Extract camera server settings
     server_stg = settings["camera-server"]
     bridge = Bridge(server_stg["host"], server_stg["port"], verbose=args.verbose)
-    bridge.start()
 
+    # Extract calibration settings
     rect_stg = settings["calib"]["rectangle"]
     tag_stg = settings["calib"]["tag"]
 
@@ -35,9 +35,14 @@ def main():
         graphics=args.graphics, \
         rscs_path=settings["detector-rscs-path"], \
         tag_family=tag_stg["family"], \
+        tag_size=tag_stg["size"], \
         plane_size=(rect_stg["width"], rect_stg["height"]), \
+        tag_margin=rect_stg["tag-margin"], \
         calib_rect_tags=(rect_stg["top-left-tag"], rect_stg["top-right-tag"], rect_stg["bottom-left-tag"], rect_stg["bottom-right-tag"]) \
     )
+
+    robot_detector.check_camera_wait()
+    bridge.start()
     robot_detector.calibrate_plane()
 
     while bridge.isConnected():

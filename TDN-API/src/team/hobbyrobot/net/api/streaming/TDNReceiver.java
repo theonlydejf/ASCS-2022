@@ -70,7 +70,6 @@ public class TDNReceiver extends Thread
 					{
 					    millis = System.currentTimeMillis();
 						lastRoot = TDNRoot.readFromStream(br);
-						Logger.main.log("tdn parse took " + (System.currentTimeMillis() - millis));
 						for(TDNReceiverListener listener : listeners)
 							listener.rootReceived(lastRoot);
 					}

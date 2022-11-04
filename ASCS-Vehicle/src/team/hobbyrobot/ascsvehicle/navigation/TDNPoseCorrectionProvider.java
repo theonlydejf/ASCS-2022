@@ -1,9 +1,11 @@
 package team.hobbyrobot.ascsvehicle.navigation;
 
 import java.io.IOException;
+import java.util.LinkedList;
 
 import lejos.robotics.navigation.MoveController;
 import lejos.robotics.navigation.Pose;
+import lejos.utility.Stopwatch;
 import team.hobbyrobot.subos.navigation.PoseCorrectionProvider;
 import team.hobbyrobot.tdn.core.TDNRoot;
 import team.hobbyrobot.logging.Logger;
@@ -17,15 +19,21 @@ public class TDNPoseCorrectionProvider implements PoseCorrectionProvider, TDNRec
 	private TDNReceiver _receiver;
 	private Pose _lastPose = null;
 	private VerbosityLogger _logger;
+	private Stopwatch _poseTimeoutSw;
+	private int _poseMillisTimeout;
 	
-	public TDNPoseCorrectionProvider(int serverPort, MoveController moveController, boolean availableWhenMoving, Logger logger) throws IOException
+	LinkedList<TDNPoseCorrectionProviderListener> _listeners = new LinkedList<TDNPoseCorrectionProviderListener>();
+	
+	public TDNPoseCorrectionProvider(int serverPort, MoveController moveController, boolean availableWhenMoving, Logger logger, int poseMillisTimeout) throws IOException
 	{
 		_controller = moveController;
 		_availableWhenMoving = availableWhenMoving;
 		_receiver = new TDNReceiver(serverPort);
 		_receiver.addListener(this);
 		_logger = new VerbosityLogger(logger.createSubLogger("TDN Pose Corrector"));
-		_logger.setVerbosityLevel(VerbosityLogger.DEBUGGING);
+		_logger.setVerbosityLevel(VerbosityLogger.DETAILED_OVERVIEW);
+		_poseTimeoutSw = new Stopwatch();
+		_poseMillisTimeout = poseMillisTimeout;
 	}
 	
 	public void setVerbosity(int v)
@@ -61,13 +69,15 @@ public class TDNPoseCorrectionProvider implements PoseCorrectionProvider, TDNRec
 	@Override
 	public boolean correctionAvailable()
 	{
-		return _lastPose != null && (_availableWhenMoving || _controller.isMoving());
+		return _lastPose != null && _poseTimeoutSw.elapsed() <= _poseMillisTimeout && 
+		        (_availableWhenMoving || !_controller.isMoving());
 	}
 
 	long millis = System.currentTimeMillis();
 	@Override
 	public void rootReceived(TDNRoot root)
 	{
+	    _poseTimeoutSw.reset();
 	    _logger.log("receive took " + (millis - System.currentTimeMillis()), VerbosityLogger.DEBUGGING);
 	    millis = System.currentTimeMillis();
 		float x = root.get("x").as();
@@ -75,8 +85,38 @@ public class TDNPoseCorrectionProvider implements PoseCorrectionProvider, TDNRec
 		float heading = root.get("heading").as();
 		
 		_lastPose = new Pose(x, y, heading);
-
+		synchronized(_listeners)
+        {
+            for(TDNPoseCorrectionProviderListener l : _listeners)
+                l.correctionReceived(_lastPose);
+        }
+		
         _logger.log("Received: " + _lastPose.toString(), VerbosityLogger.DEBUGGING);
 	}
+	
+	public void addListener(TDNPoseCorrectionProviderListener l)
+	{
+	    synchronized(_listeners)
+	    {	        
+	        _listeners.add(l);
+	    }
+	}
+	
+	public void removeListener(TDNPoseCorrectionProviderListener l)
+	{synchronized(_listeners)
+        {
+	        _listeners.remove(l);
+        }
+	}
 
+    @Override
+    public void tdnSenderConnected() 
+    {
+        synchronized(_listeners)
+        {
+            for(TDNPoseCorrectionProviderListener l : _listeners)
+                l.correctorConnected();
+    
+        }
+    }
 }

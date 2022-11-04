@@ -43,13 +43,14 @@ public class VerbosityLogger
 	
 	public void log(String message, int currVerbosityLevel) 
 	{
-		if(currVerbosityLevel <= this.verbosityLevel)
+		if(logger != null && currVerbosityLevel <= this.verbosityLevel)
 			logger.log(message);
 	}
 	
 	public void priorityLog(String message)
 	{
-		logger.log(message);
+	    if(logger != null)
+	        logger.log(message);
 	}
 	
 	public Logger getWrappedLogger()

@@ -1,7 +1,9 @@
 package team.hobbyrobot.subos.navigation;
 
+import lejos.robotics.DirectionFinder;
 import lejos.robotics.localization.PoseProvider;
 import lejos.robotics.navigation.Pose;
+import team.hobbyrobot.logging.Logger;
 
 public class CorrectablePoseProvider implements PoseProvider
 {
@@ -16,6 +18,7 @@ public class CorrectablePoseProvider implements PoseProvider
 	
 	public void correct()
 	{
+	   Logger.main.log("Trying to correcto pose. Available: " + _corrector.correctionAvailable());
        if(_corrector.correctionAvailable())
             _main.setPose(_corrector.getPose());
 	}
@@ -35,4 +38,13 @@ public class CorrectablePoseProvider implements PoseProvider
 		_corrector.setPose(aPose);
 	}
 	
+	public PoseProvider getMainProvider()
+	{
+	    return _main;
+	}
+	
+	public PoseCorrectionProvider getCorrectionProvider()
+	{
+	    return _corrector;
+	}
 }

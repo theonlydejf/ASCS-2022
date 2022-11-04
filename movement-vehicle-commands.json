@@ -1,0 +1,102 @@
+{
+    "service-name": "MovementService",
+    "requests":
+    {
+        "travel":
+        {
+            "params": [ "distance" ],
+            "params-types": [ "flt" ],
+            "response": [ ]
+        },
+        "rotate":
+        {
+            "params": [ "angle" ],
+            "params-types": [ "flt" ],
+            "response": [ ]
+        },
+        "getPose":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ "x", "y", "heading" ]
+        },
+        "stop":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ ]
+        },
+        "flt":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ ]
+        },
+        "goto":
+        {
+            "params": [ "x", "y", "heading" ],
+            "params-types": [ "flt", "flt", "flt" ],
+            "response": [ ]
+        },
+        "followPath":
+        {
+            "params": [ "path" ],
+            "params-types": [ "arr|obj" ],
+            "response": [ ]
+        },
+        "continuePath":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ ]
+        },
+        "isPathCompleted":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ "pathCompleted" ]
+        },
+        "setSpeed":
+        {
+            "params": [ "speed" ],
+            "params-types": [ "flt" ],
+            "response": [ ]
+        },
+        "setNavTravelLimit":
+        {
+            "params": [ "limit" ],
+            "params-types": [ "flt" ],
+            "response": [ ]
+        },
+        "setMaxSpeed":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ ]
+        },
+        "getSpeed":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ "speed" ]
+        },
+        "resetGyroAt":
+        {
+            "params": [ "angle" ],
+            "params-types": [ "flt" ],
+            "response": [ ]
+        },
+        "setPosition":
+        {
+            "params": [ "x", "y" ],
+            "params-types": [ "flt", "flt" ],
+            "response": [ ]
+        },
+        "setExpectedHeading":
+        {
+            "params": [ "heading" ],
+            "params-types": [ "flt" ],
+            "response": [ ]
+        }
+    }
+}

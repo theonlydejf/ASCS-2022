@@ -161,7 +161,6 @@ public class TDNAPIServer implements ClientRegisterer, Runnable, Closeable
 				if (client == null) // If none of the clients have sent anything
 					continue;
 				
-				infoLogger.log("Processing request...", VerbosityLogger.DETAILED_OVERVIEW);
 				Stopwatch partSw = new Stopwatch();
 				// Read request
 				TDNRoot request = TDNRoot.readFromStream(client.reader);
@@ -201,6 +200,8 @@ public class TDNAPIServer implements ClientRegisterer, Runnable, Closeable
 
 		// True if the user is requesting api service
 		boolean apiRequest = ((String) serviceStr.value).equals(API_SERVICE_NAME);
+		if(!apiRequest)
+		    infoLogger.log("Processing request for service " + serviceStr.value, VerbosityLogger.DETAILED_OVERVIEW);
 		// Heartbeat
 		if (apiRequest)
 			client.heartbeatSw.reset();

@@ -5,4 +5,5 @@ import team.hobbyrobot.tdn.core.TDNRoot;
 public interface TDNReceiverListener
 {
 	void rootReceived(TDNRoot root);
+	void tdnSenderConnected();
 }

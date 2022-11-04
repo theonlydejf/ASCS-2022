@@ -12,7 +12,7 @@ import team.hobbyrobot.tdn.base.TDNParsers;
 import team.hobbyrobot.tdn.core.TDNRoot;
 import team.hobbyrobot.tdn.core.TDNValue;
 
-public class TDNAPIClient implements TimerListener
+public class TDNAPIClient implements TimerListener, Closeable
 {
 	public static final int HEARTBEAT_INTERVAL = TDNAPIServer.HEARTBEAT_TIMEOUT - 300;
 	
@@ -80,4 +80,17 @@ public class TDNAPIClient implements TimerListener
 	{
 		_logger.setVerbosityLevel(verbosityLevel);
 	}
+	
+	public String getIP()
+	{
+	    return _client.getInetAddress().toString();
+	}
+
+    @Override
+    public void close() throws IOException 
+    {
+        _logger.log("Closing...", VerbosityLogger.DEFAULT);
+        _heartbeatTimer.stop();
+        _client.close();
+    }
 }

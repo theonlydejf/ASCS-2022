@@ -39,6 +39,7 @@ public class Timer
 					}
 					if (r)
 					{
+					    myListener.timedOut();
 						try
 						{
 							Thread.sleep(d);
@@ -47,7 +48,10 @@ public class Timer
 						{
 							return;
 						}
-						myListener.timedOut();
+						synchronized (Timer.this)
+	                    {
+	                        r = running;
+	                    }
 					}
 					else
 					{

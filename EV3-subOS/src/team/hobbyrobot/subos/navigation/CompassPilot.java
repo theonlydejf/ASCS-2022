@@ -11,10 +11,18 @@ import lejos.robotics.navigation.Move.MoveType;
 import lejos.robotics.navigation.MoveListener;
 import lejos.robotics.navigation.RotateMoveController;
 import lejos.utility.Stopwatch;
+import team.hobbyrobot.logging.Logger;
 import team.hobbyrobot.subos.SubOSController;
 import team.hobbyrobot.subos.hardware.GyroRobotHardware;
 import temp.PIDTuner;
 
+/**
+ * Implementation of RotateMoveController using {@link team.hobbyrobot.subos.navigation.MoveHandler MoveHandler}.
+ * All move processors use gyro from  {@link team.hobbyrobot.subos.hardware.GyroRobotHardware GyroRobotHardware} to correct the
+ * movement.
+ * 
+ * @author David Krcmar
+ */
 public class CompassPilot extends MoveHandler implements RotateMoveController, LimitablePilot
 {
 	private int _angularSpeed; // %
@@ -29,6 +37,10 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 	private TravelProcessor _travelProcessor;
 	private RotateProcessor _rotateProcessor;
 
+	/**
+	 * Creates instance of CompassPilot
+	 * @param hardware The RobotHardware the pilot should control
+	 */
 	public CompassPilot(GyroRobotHardware hardware)
 	{
 		super(hardware);
@@ -42,10 +54,10 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 		_angularSpeed = 100;
 
 		_linearAccel = 100;
-		_angularAccel = 150;
+		_angularAccel = 100;
 
 		_linearMinSpeed = 30;
-		_angularMinSpeed = 25;
+		_angularMinSpeed = 30;
 
 		_expectedHeading = hardware.getAngle();
 	}
@@ -217,37 +229,78 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 	{
 		return moveHandler.getRotateLimit();
 	}
-
+	
+	/**
+	 * Gets the current linear minimal speed of the pilot
+	 * @return The linear minimal speed, the robot is allowed to move at
+	 */
 	public int getLinearMinSpeed()
 	{
 		return _linearMinSpeed;
 	}
 
+	/**
+	 * Sets the current linear minimal speed of the pilot
+	 * @param minSpeed The linear minimal speed, the robot is allowed to move at
+	 */
 	public void setLinearMinSpeed(int minSpeed)
 	{
 		_linearMinSpeed = minSpeed;
 	}
 
-	public int getAngulatMinSpeed()
+	/**
+     * Gets the current angular minimal speed of the pilot
+     * @return The angular minimal speed, the robot is allowed to move at
+     */
+	public int getAngularMinSpeed()
 	{
 		return _angularMinSpeed;
 	}
 
+   /**
+     * Sets the current angular minimal speed of the pilot
+     * @param minSpeed The angular minimal speed, the robot is allowed to move at
+     */
 	public void setAngularMinSpeed(int minSpeed)
 	{
 		_angularMinSpeed = minSpeed;
 	}
 
+	/**
+	 * Sets the heading, the robot is expected to travel at. The move processor for Travel
+	 * then tries to stay at this heading for the duration of the travel. The move processor
+	 * for Rotate automatically updates the expected heading.
+	 * @param heading The heading, robot is expected to travel at
+	 */
 	public void setExpectedHeading(float heading)
 	{
 		_expectedHeading = heading;
 	}
 
-	//TODO: Calibrate PID
-	//		Better stopping
-	private class RotateProcessor implements MoveProcessor
+	//TODO: - Calibrate PID
+	//		- Better stopping - do rotate multiple times to ensure 
+	//         correct heading (wait between each rotate)
+    /**
+     * Implementation of rotate, corrected by a gyroscope
+     * 
+     * @author David Krcmar
+     */
+	public class RotateProcessor implements MoveProcessor
 	{
 		public static final int PID_CONTROL_PERIOD = 30; //ms
+		
+		/** Minimal speed, the robot is allowed to rotate at */
+		public float minSpeed;
+		/** Constant used for accelerating */
+		public float accelConst;
+		
+		/** 
+		 * If true, parameters are reseted to defaults from the current instance of 
+		 * {@link team.hobbyrobot.subos.navigation.CompassPilot CompassPilot} when
+		 * the {@link team.hobbyrobot.subos.navigation.MoveProcessor#reset reset()}
+		 * method is called
+		 */
+		public boolean resetParams;
 		
 		private PID _pid;
 		private Stopwatch _pidSw;
@@ -256,8 +309,12 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 		
 		public RotateProcessor()
 		{
-			_accelerator = new Accelerator(_angularMinSpeed);
-			_pidSw = new Stopwatch();
+		    this(true);
+		}
+		
+		public RotateProcessor(boolean resetParams)
+		{
+		    this.resetParams = resetParams;
 			try
 			{
 				//_pid = new PIDTuner(.8, .0001, 0, 0, 1234);
@@ -272,6 +329,9 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			
+	         _pidSw = new Stopwatch();
+	        _accelerator = new Accelerator(CompassPilot.this._angularMinSpeed);
 		}
 
 		@Override
@@ -280,8 +340,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			// If the robot should rotate without limit -> skip regulation
 			if (Double.isInfinite(targetMove.getAngleTurned()))
 			{
-				controlMotors((int) (targetMove.getRotateSpeed() * Math.signum(targetMove.getAngleTurned())), 100,
-					false);
+				controlMotors((int) (targetMove.getRotateSpeed() * Math.signum(targetMove.getAngleTurned())), 100, false);
 				return false;
 			}
 
@@ -289,10 +348,19 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			float travelledAng = hardware.getAngle() - _angleRotatedAtMoveStart;
 			
 			// True, if the move has completed
-			boolean rotateCompleted = travelledAng == targetMove.getAngleTurned();
+			boolean rotateCompleted = (targetMove.getAngleTurned() - travelledAng) * Math.signum(targetMove.getAngleTurned()) <= 0; //Math.round(travelledAng) == Math.round(targetMove.getAngleTurned());
 			
+	         // If the move has completed -> set the heading, at which the robot is expected to be
+            if (rotateCompleted)
+            {               
+                CompassPilot.this._expectedHeading += targetMove.getAngleTurned();
+                CompassPilot.this._expectedHeading = CompassPilot.this._expectedHeading % 360;
+            }
+			
+            // Limit the method to control motors only once per PID_CONTROL_PERIOD miliseconds
 			if (_pidSw.elapsed() < PID_CONTROL_PERIOD || rotateCompleted)
 				return rotateCompleted;
+			
 			_pidSw.reset();
 
 			// Limit the rotate rate pid to the maximum rotate speed
@@ -304,14 +372,13 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			float absDecelSpeed = Math.abs(decelSpeed);
 
 			// If the decel speed is lower then angular min speed -> bound it to the min angular speed
-			if (absDecelSpeed < _angularMinSpeed)
+			if (absDecelSpeed < minSpeed)
 			{
-				decelSpeed = _angularMinSpeed * Math.signum(decelSpeed);
-				absDecelSpeed = _angularMinSpeed;
+				decelSpeed = minSpeed * Math.signum(decelSpeed);
+				absDecelSpeed = minSpeed;
 			}
-
 			// Calculate the accelerating speed
-			float currSpeed = (float) _accelerator.getCurrentSpeed(_linearAccel);
+			float currSpeed = (float) _accelerator.getCurrentSpeed(accelConst);
 
 			// If robot should go slower, then the accelerator suggests, use the decelSpeed
 			if (absDecelSpeed < currSpeed)
@@ -321,10 +388,6 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 
 			// Update motors
 			controlMotors((int) currSpeed, 100 * Math.signum(decelSpeed), true);
-
-			// If the move has completed -> set the heading, at which the robot is expected to be
-			if (rotateCompleted)
-				_expectedHeading += targetMove.getAngleTurned();
 
 			return rotateCompleted;
 		}
@@ -337,17 +400,46 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			_angleRotatedAtMoveStart = hardware.getAngle();
 			_pid.reset();
 			_pidSw.reset();
-			_accelerator.reset(_angularMinSpeed);
+			
+			if(resetParams)
+			{
+			    _accelerator.reset(_angularMinSpeed);
+			    minSpeed = CompassPilot.this._angularMinSpeed;
+			    accelConst = (float) CompassPilot.this._angularAccel;
+			}
 		}
 
 	}
-
-	private class TravelProcessor implements MoveProcessor
+	
+	/**
+	 * Implementation of travel, corrected by a gyroscope
+	 * 
+	 * @author David Krcmar
+	 */
+	public class TravelProcessor implements MoveProcessor
 	{
 		public static final float DECEL_CONSTANT = .25f;
 		public static final int PID_CONTROL_PERIOD = 30; //ms
 
+		/** The angle the travel processor tries to travel at */
 		public float targetAngle = 0;
+		public float normalizedAngleDiff = 0;
+		/** The speed the travel starts at */
+		public float startSpeed = 0;
+		/** The speed the travel ends at */
+		public float endSpeed = 0;
+		/** The constant used for accelerating */
+		public float accelConst = 0;
+		/** The constant used for decelerating */
+		public float decelConst = 0;
+		
+		/** 
+         * If true, parameters are reseted to defaults from the current instance of 
+         * {@link team.hobbyrobot.subos.navigation.CompassPilot CompassPilot} when
+         * the {@link team.hobbyrobot.subos.navigation.MoveProcessor#reset reset()}
+         * method is called
+         */
+		public boolean resetParams = true;
 
 		private PID _pid;
 		private float _distanceTravelledAtMoveStart = 0;
@@ -357,6 +449,12 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 
 		public TravelProcessor()
 		{
+		    this(true);
+		}
+		
+		public TravelProcessor(boolean resetParams)
+		{
+		    this.resetParams = resetParams;
 			_pid = null;
 			try
 			{
@@ -377,57 +475,52 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			}
 
 			_pidSw = new Stopwatch();
-			_accelerator = new Accelerator(_linearMinSpeed);
+			_accelerator = new Accelerator(CompassPilot.this._linearAccel);
 		}
 
 		@Override
 		public boolean step(Move targetMove)
 		{
+		    // Get target distance components
 			float travelTarget = targetMove.getDistanceTraveled();
 			float absTravelTarget = Math.abs(travelTarget);
-
+			int sgnTravelTarget = (int) Math.signum(travelTarget);
+			
+			// Calculate remaining distance
 			float travelled = hardware.getDrivenDist() - _distanceTravelledAtMoveStart;
 			float absTravelled = Math.abs(travelled);
-
 			float distanceRemaining = absTravelTarget - absTravelled;
+			
 			boolean travelCompleted = distanceRemaining <= 0;
 
+			// Limit the method to control motors only once per PID_CONTROL_PERIOD miliseconds
 			if (_pidSw.elapsed() < PID_CONTROL_PERIOD || travelCompleted)
 				return travelCompleted;
 			_pidSw.reset();
 			
-			float decelSpeed = distanceRemaining * DECEL_CONSTANT + _linearMinSpeed;
+			// Calculate current deceleration speed
+			float decelSpeed = distanceRemaining * decelConst + endSpeed;
+		    // Clamp current decel speed to min and max speed
 			if (decelSpeed > targetMove.getTravelSpeed())
 				decelSpeed = targetMove.getTravelSpeed();
-			else if (decelSpeed < _linearMinSpeed)
-				decelSpeed = _linearMinSpeed;
+			else if (decelSpeed < endSpeed)
+				decelSpeed = endSpeed;
 
-			float currSpeed = (float) _accelerator.getCurrentSpeed(_linearAccel);
+			// Calculate current acceleration speed
+			float currSpeed = (float) _accelerator.getCurrentSpeed(accelConst);
+			
+			// If robot should start decelerating to get to target distance smoothly, use decel speed
+			// Accel speed does not have to be clamped, beacuse min speed is set in when initing
+			// Accelerator and max speed is clamped by decel speed
 			if (decelSpeed < currSpeed)
 				currSpeed = decelSpeed;
 
-			float currAng = hardware.getAngle();
-
+			// Calculate regulation values from current angle and target angle
+			float currAng = hardware.getAngle() - normalizedAngleDiff;
 			_currPIDRate = _pid.getOutput(currAng, targetAngle);
 
-			controlMotors((int) currSpeed, _currPIDRate, false);
-			/*
-			 * int lPower = (int)(currSpeed * Math.signum(travelTarget));
-			 * int rPower = (int)(currSpeed * Math.signum(travelTarget));
-			 * // Calculate regulated motor powers
-			 * if (_currPIDRate > 0)
-			 * lPower -= (int) (Math.abs(_currPIDRate) * Math.signum(lPower));
-			 * else
-			 * rPower -= (int) (Math.abs(_currPIDRate) * Math.signum(rPower));
-			 * // Limit regulated motors to only slow down (never change direction of the motor by regulating
-			 * it)
-			 * //if (lPower * Math.signum(travelTarget) < 0)
-			 * // lPower = 0;
-			 * //if (rPower * Math.signum(travelTarget) < 0)
-			 * // rPower = 0;
-			 * hardware.setDrivePowers(lPower, rPower);
-			 * hardware.startDriveMotors(true);
-			 */
+			
+			controlMotors((int) currSpeed * sgnTravelTarget, _currPIDRate * sgnTravelTarget, false);
 
 			return travelCompleted;
 		}
@@ -438,11 +531,24 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			resetSteeringControlLoop();
 
 			_distanceTravelledAtMoveStart = hardware.getDrivenDist();
-			_accelerator.reset(_linearMinSpeed);
-			targetAngle = _expectedHeading;
+			Logger.main.log("Travellin at expected heading: " + CompassPilot.this._expectedHeading);
 			_pidSw.reset();
 			_pid.reset();
 			_currPIDRate = 0;
+			
+			if(resetParams)
+			{
+			    targetAngle = CompassPilot.this._expectedHeading;
+			    normalizedAngleDiff = hardware.getAngle() - (hardware.getAngle() % 360);
+			    
+			    startSpeed = CompassPilot.this._linearMinSpeed;
+			    endSpeed = CompassPilot.this._linearMinSpeed;
+			    
+			    accelConst = (float) CompassPilot.this._linearAccel;
+			    decelConst = DECEL_CONSTANT;			    
+			    _accelerator.reset(startSpeed);
+			}
+			
 		}
 
 	}

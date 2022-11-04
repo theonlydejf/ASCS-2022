@@ -29,6 +29,7 @@ import team.hobbyrobot.subos.SubOSController;
 import team.hobbyrobot.subos.hardware.RobotHardware;
 import team.hobbyrobot.subos.hardware.motor.EV3DCMediumRegulatedMotor;
 import team.hobbyrobot.logging.Logger;
+import team.hobbyrobot.subos.navigation.CompassPilot;
 import team.hobbyrobot.subos.navigation.LimitablePilot;
 import team.hobbyrobot.subos.navigation.Navigator;
 import team.hobbyrobot.net.api.Service;
@@ -425,6 +426,24 @@ public class MovementService implements Service, MoveListener, NavigationListene
 						poseProvider.setPose(new Pose((float)x.as(), (float)y.as(), tmp.getHeading()));
 						return new TDNRoot();
 					}
+				});
+				
+				put("setExpectedHeading", new RequestInvoker()
+				{
+				    @Override
+				    public TDNRoot invoke(TDNRoot params) throws RequestGeneralException, RequestParamsException
+				    {
+				        TDNValue heading = params.get("heading");
+				        if(heading == null)
+				            throw new RequestParamsException("Heading isn't present in the current root", "heading");
+				        
+				        if(!(pilot instanceof CompassPilot))
+				            throw new RequestGeneralException("Trying to set expected heading to pilot which doesn't have one");
+				        
+				        ((CompassPilot)pilot).setExpectedHeading((float) heading.value);
+				        
+				        return new TDNRoot();
+				    }
 				});
 			}
 		};
