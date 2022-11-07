@@ -227,8 +227,6 @@ class RobotDetector:
 
     def _detect_tags(self, gray) -> list:
         blur = cv.GaussianBlur(gray, (5,5), 0)
-        if self._graphics:
-            cv.imshow("processed", blur)
         return self._detector.detect(blur)
 
     def _get_img(self):

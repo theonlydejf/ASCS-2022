@@ -277,6 +277,16 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 		_expectedHeading = heading;
 	}
 
+	private static float normalizeAng(float ang)
+	{
+	    while(ang >= 360)
+	        ang -= 360;
+	    while(ang < 0)
+	        ang += 360;
+	    
+	    return ang;
+	}
+	
 	//TODO: - Calibrate PID
 	//		- Better stopping - do rotate multiple times to ensure 
 	//         correct heading (wait between each rotate)
@@ -352,10 +362,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			
 	         // If the move has completed -> set the heading, at which the robot is expected to be
             if (rotateCompleted)
-            {               
-                CompassPilot.this._expectedHeading += targetMove.getAngleTurned();
-                CompassPilot.this._expectedHeading = CompassPilot.this._expectedHeading % 360;
-            }
+                CompassPilot.this._expectedHeading = normalizeAng(_angleRotatedAtMoveStart + targetMove.getAngleTurned());
 			
             // Limit the method to control motors only once per PID_CONTROL_PERIOD miliseconds
 			if (_pidSw.elapsed() < PID_CONTROL_PERIOD || rotateCompleted)
@@ -518,6 +525,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			// Calculate regulation values from current angle and target angle
 			float currAng = hardware.getAngle() - normalizedAngleDiff;
 			_currPIDRate = _pid.getOutput(currAng, targetAngle);
+			Logger.main.log("travelling at angle: " + currAng + "\t target: " + targetAngle);
 
 			
 			controlMotors((int) currSpeed * sgnTravelTarget, _currPIDRate * sgnTravelTarget, false);
@@ -531,7 +539,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			resetSteeringControlLoop();
 
 			_distanceTravelledAtMoveStart = hardware.getDrivenDist();
-			Logger.main.log("Travellin at expected heading: " + CompassPilot.this._expectedHeading);
+			Logger.main.log("Travelling at expected heading: " + CompassPilot.this._expectedHeading);
 			_pidSw.reset();
 			_pid.reset();
 			_currPIDRate = 0;
@@ -539,7 +547,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			if(resetParams)
 			{
 			    targetAngle = CompassPilot.this._expectedHeading;
-			    normalizedAngleDiff = hardware.getAngle() - (hardware.getAngle() % 360);
+			    normalizedAngleDiff = hardware.getAngle() - normalizeAng(hardware.getAngle());
 			    
 			    startSpeed = CompassPilot.this._linearMinSpeed;
 			    endSpeed = CompassPilot.this._linearMinSpeed;

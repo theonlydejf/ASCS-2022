@@ -94,7 +94,7 @@ public class EV3Gyroscope implements Gyroscope, SampleProvider, DirectionFinder
 	@Override
 	public float getDegreesCartesian()
 	{
-		return getAngle() % 360;
+		return normalizeAng(getAngle());
 	}
 
 	@Override
@@ -103,4 +103,13 @@ public class EV3Gyroscope implements Gyroscope, SampleProvider, DirectionFinder
 		reset();
 	}
 
+	   private static float normalizeAng(float ang)
+	    {
+	        while(ang >= 360)
+	            ang -= 360;
+	        while(ang < 0)
+	            ang += 360;
+	        
+	        return ang;
+	    }
 }

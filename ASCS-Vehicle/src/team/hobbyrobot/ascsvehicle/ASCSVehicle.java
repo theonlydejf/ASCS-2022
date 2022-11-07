@@ -137,6 +137,7 @@ public class ASCSVehicle implements TDNPoseCorrectionProviderListener
 			//logger.log("Current pose: " + pose.toString());
 			Hardware.resetGyroAt(0);
 			pilot.rotate(90);
+			pilot.rotate(-90);
 			Sound.beep();
 			//Hardware.moveLifterTo(100);
 			//Button.waitForAnyPress();

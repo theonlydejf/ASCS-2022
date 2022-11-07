@@ -454,7 +454,14 @@ public class Navigator implements WaypointListener, MoveListener
 						_destination.getHeading();
 
 						_logger.log("Turning to match waypoints heading. Robot at " + _pose.toString());
-						_pilot.rotate(_destination.getHeading() - _pose.getHeading(), false);
+						double ang = _destination.getHeading() - _pose.getHeading();
+						// get shortest path to desired heading
+						while(ang < -180)
+						    ang += 360;
+						while(ang > 180)
+						    ang -= 360;
+						
+						_pilot.rotate(ang, false);
 						
 						waitMoveFinished();
 						checkLimit();

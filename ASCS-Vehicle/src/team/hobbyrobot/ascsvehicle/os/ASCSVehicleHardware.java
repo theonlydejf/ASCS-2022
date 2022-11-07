@@ -282,7 +282,7 @@ public class ASCSVehicleHardware extends GyroRobotHardware
 		if (getPilot() != null && getDirectionFinder() != null)
 		{
 		    PoseProvider main = new CorrectableCompassPoseProvider(getPilot(), _gyro);
-		    _corrector = new TDNPoseCorrectionProvider(Resources.global().getInt("servers.poseCorrectionPort"), getPilot(), false, ASCSVehicle.logger, 200);
+		    _corrector = new TDNPoseCorrectionProvider(Resources.global().getInt("servers.poseCorrectionPort"), getPilot(), false, ASCSVehicle.logger, 300, 400);
 		    
 		    _poseProvider = new CorrectablePoseProvider(main, _corrector);
 		}

@@ -3,7 +3,7 @@ package team.hobbyrobot.subos;
 import lejos.hardware.Sound;
 
 /**
- * Jine typy zvuku
+ * Sounds used by subOS
  * 
  * @author David Krcmar
  * @version 0.1
@@ -16,9 +16,9 @@ public class SystemSound
 	}
 
 	/**
-	 * Zahraj fatal error zvuk
+	 * Play fatal error sounf
 	 * 
-	 * @param async Pokud true - Zvuk bude asynchronne
+	 * @param async True, when sound shoud be payed asynchronously
 	 */
 	public static void playFatalErrorSound(boolean async)
 	{
@@ -38,12 +38,11 @@ public class SystemSound
 			t.run();
 	}
 
-	/**
-	 *  
-	 * Zahraj non fatal error zvuk
-	 * 
-	 * @param async Pokud true - Zvuk bude asynchronne
-	 */
+    /**
+     * Play non fatal error sounf
+     * 
+     * @param async True, when sound shoud be payed asynchronously
+     */
 	public static void playNonFatalErrorSound(boolean async)
 	{
 		//Vytvor Thread ve kterem se zvuk zahraje

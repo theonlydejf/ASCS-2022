@@ -3,7 +3,10 @@ package team.hobbyrobot.ascsvehicle.navigation;
 import java.io.IOException;
 import java.util.LinkedList;
 
+import lejos.robotics.navigation.Move;
 import lejos.robotics.navigation.MoveController;
+import lejos.robotics.navigation.MoveListener;
+import lejos.robotics.navigation.MoveProvider;
 import lejos.robotics.navigation.Pose;
 import lejos.utility.Stopwatch;
 import team.hobbyrobot.subos.navigation.PoseCorrectionProvider;
@@ -12,21 +15,25 @@ import team.hobbyrobot.logging.Logger;
 import team.hobbyrobot.logging.VerbosityLogger;
 import team.hobbyrobot.net.api.streaming.*;
 
-public class TDNPoseCorrectionProvider implements PoseCorrectionProvider, TDNReceiverListener
+public class TDNPoseCorrectionProvider implements PoseCorrectionProvider, TDNReceiverListener, MoveListener
 {
 	private MoveController _controller;
 	private boolean _availableWhenMoving;
+	private boolean _isMoving = false;
 	private TDNReceiver _receiver;
 	private Pose _lastPose = null;
 	private VerbosityLogger _logger;
 	private Stopwatch _poseTimeoutSw;
+	private Stopwatch _moveTimeoutSw;
 	private int _poseMillisTimeout;
+	private int _moveMillisTimeout;
 	
 	LinkedList<TDNPoseCorrectionProviderListener> _listeners = new LinkedList<TDNPoseCorrectionProviderListener>();
 	
-	public TDNPoseCorrectionProvider(int serverPort, MoveController moveController, boolean availableWhenMoving, Logger logger, int poseMillisTimeout) throws IOException
+	public TDNPoseCorrectionProvider(int serverPort, MoveController moveController, boolean availableWhenMoving, Logger logger, int poseMillisTimeout, int moveMillisTimeout) throws IOException
 	{
 		_controller = moveController;
+		_controller.addMoveListener(this);
 		_availableWhenMoving = availableWhenMoving;
 		_receiver = new TDNReceiver(serverPort);
 		_receiver.addListener(this);
@@ -34,6 +41,8 @@ public class TDNPoseCorrectionProvider implements PoseCorrectionProvider, TDNRec
 		_logger.setVerbosityLevel(VerbosityLogger.DETAILED_OVERVIEW);
 		_poseTimeoutSw = new Stopwatch();
 		_poseMillisTimeout = poseMillisTimeout;
+		_moveTimeoutSw = new Stopwatch();
+		_moveMillisTimeout = moveMillisTimeout;
 	}
 	
 	public void setVerbosity(int v)
@@ -70,7 +79,10 @@ public class TDNPoseCorrectionProvider implements PoseCorrectionProvider, TDNRec
 	public boolean correctionAvailable()
 	{
 		return _lastPose != null && _poseTimeoutSw.elapsed() <= _poseMillisTimeout && 
-		        (_availableWhenMoving || !_controller.isMoving());
+		        (_availableWhenMoving || 
+	                (!_controller.isMoving() 
+                    && !_isMoving 
+                    && _moveTimeoutSw.elapsed() >= _moveMillisTimeout));
 	}
 
 	long millis = System.currentTimeMillis();
@@ -118,5 +130,18 @@ public class TDNPoseCorrectionProvider implements PoseCorrectionProvider, TDNRec
                 l.correctorConnected();
     
         }
+    }
+
+    @Override
+    public void moveStarted(Move event, MoveProvider mp) 
+    {
+        _isMoving = true;
+    }
+
+    @Override
+    public void moveStopped(Move event, MoveProvider mp) 
+    {
+        _moveTimeoutSw.reset();
+        _isMoving = false;
     }
 }

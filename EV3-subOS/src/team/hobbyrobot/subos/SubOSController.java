@@ -58,7 +58,7 @@ public class SubOSController
 	 * 
 	 * @param <InfoBarType>    Typ instance InfoBarData
 	 * @param hardware         Hardware robot, na kterem subOS bezi
-	 * @param infoBarTypeClass Tryda InfoBarData (ziskate pomoci *.class napr:
+	 * @param infoBarTypeClass Trida InfoBarData (ziskate pomoci *.class napr:
 	 *                         {@link subOS.supportClasses.Defaults.BasicInfoBar}.class
 	 * @return Instanci InfoBarData, ktera bezi na subOS
 	 * @throws IOException 

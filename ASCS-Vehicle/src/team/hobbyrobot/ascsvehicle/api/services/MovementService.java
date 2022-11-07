@@ -477,7 +477,7 @@ public class MovementService implements Service, MoveListener, NavigationListene
 	@Override
 	public void pathComplete(Waypoint waypoint, Pose pose, int sequence)
 	{
-		logger.log("Path completed at waypoint " + waypoint.getPose().toString() + ", waypoints remaining + " + navigator.getPath().size() + ". Robot is at " + pose.toString());
+		logger.log("Path completed at waypoint " + waypoint.getPose().toString() + ", waypoints remaining: " + navigator.getPath().size() + ". Robot is at " + pose.toString());
 	}
 
 	@Override
