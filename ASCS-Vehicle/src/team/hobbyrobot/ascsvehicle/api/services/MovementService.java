@@ -1,46 +1,25 @@
 package team.hobbyrobot.ascsvehicle.api.services;
 
-import java.lang.reflect.Method;
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.List;
-import java.util.Arrays;
 import java.util.Hashtable;
 
-import lejos.hardware.motor.MotorRegulator;
-import lejos.robotics.RegulatedMotor;
-import lejos.robotics.chassis.Chassis;
-import lejos.robotics.chassis.Wheel;
-import lejos.robotics.chassis.WheeledChassis;
-import lejos.robotics.chassis.WheeledChassis.Modeler;
-import lejos.robotics.localization.OdometryPoseProvider;
 import lejos.robotics.localization.PoseProvider;
-import lejos.robotics.navigation.Move;
-import lejos.robotics.navigation.MoveListener;
-import lejos.robotics.navigation.MovePilot;
-import lejos.robotics.navigation.MoveProvider;
-import lejos.robotics.navigation.NavigationListener;
-import lejos.robotics.navigation.Pose;
-import lejos.robotics.navigation.RotateMoveController;
-import lejos.robotics.navigation.Waypoint;
-import lejos.utility.GyroDirectionFinder;
-import team.hobbyrobot.ascsvehicle.CompassDifferentialPilot;
+import lejos.robotics.navigation.*;
 import team.hobbyrobot.ascsvehicle.os.ASCSVehicleHardware;
-import team.hobbyrobot.subos.SubOSController;
-import team.hobbyrobot.subos.hardware.RobotHardware;
-import team.hobbyrobot.subos.hardware.motor.EV3DCMediumRegulatedMotor;
 import team.hobbyrobot.logging.Logger;
 import team.hobbyrobot.subos.navigation.CompassPilot;
 import team.hobbyrobot.subos.navigation.LimitablePilot;
 import team.hobbyrobot.subos.navigation.Navigator;
+import team.hobbyrobot.subos.net.RemoteMoveEventProvider;
 import team.hobbyrobot.net.api.Service;
-import team.hobbyrobot.net.api.exceptions.RequestGeneralException;
-import team.hobbyrobot.net.api.exceptions.RequestParamsException;
-import team.hobbyrobot.net.api.exceptions.UnknownRequestException;
-import team.hobbyrobot.tdn.base.TDNArray;
+import team.hobbyrobot.net.api.exceptions.*;
 import team.hobbyrobot.tdn.base.TDNParsers;
 import team.hobbyrobot.tdn.core.TDNRoot;
 import team.hobbyrobot.tdn.core.TDNValue;
-import lejos.robotics.localization.CompassPoseProvider;
 
 // TODO opravit
 public class MovementService implements Service, MoveListener, NavigationListener
@@ -50,6 +29,8 @@ public class MovementService implements Service, MoveListener, NavigationListene
 	private Logger logger;
 	private PoseProvider poseProvider;
 	private Navigator navigator;
+	
+	private RemoteMoveEventProvider moveEventProvider = new RemoteMoveEventProvider();
 
 	Hashtable<String, RequestInvoker> requests = null;
 
@@ -67,9 +48,11 @@ public class MovementService implements Service, MoveListener, NavigationListene
 	{
 		try
 		{
-			RequestInvoker requestMethod = requests.get(request);
+			RequestInvoker requestMethod = requests.get(request);			
 			if (requestMethod == null)
 				throw new UnknownRequestException();
+			
+	        requestMethod.client = client;
 
 			return requestMethod.invoke(params);
 		}
@@ -109,7 +92,6 @@ public class MovementService implements Service, MoveListener, NavigationListene
 			 * 
 			 */
 			private static final long serialVersionUID = 4622976006937326703L;
-
 			{
 				/** TRAVEL
 				 * Makes the robot go straight certain distance
@@ -445,6 +427,33 @@ public class MovementService implements Service, MoveListener, NavigationListene
 				        return new TDNRoot();
 				    }
 				});
+				
+                put("registerMoveListener", new RequestInvoker()
+                {
+                    @Override
+                    public TDNRoot invoke(TDNRoot params) throws RequestGeneralException, RequestParamsException
+                    {
+                        TDNValue port = params.get("port");
+                        if(port == null)
+                            throw new RequestParamsException("port isn't present in the current root", "port");
+                        String ip=(((InetSocketAddress) client.getRemoteSocketAddress()).getAddress()).toString().replace("/","");
+                        
+                        try 
+                        {
+                            moveEventProvider.connectListener(ip, (int) port.as());
+                        } 
+                        catch (UnknownHostException e) 
+                        {
+                            throw new RequestGeneralException("Exception occured when connecting remote move listener: " + Logger.getExceptionInfo(e));
+                        } 
+                        catch (IOException e) 
+                        {
+                            throw new RequestGeneralException("Exception occured when connecting remote move listener: " + Logger.getExceptionInfo(e));
+                        }
+                        
+                        return new TDNRoot();
+                    }
+                });
 			}
 		};
 	}
@@ -452,7 +461,9 @@ public class MovementService implements Service, MoveListener, NavigationListene
 	private abstract static class RequestInvoker
 	{
 		protected TDNRoot params;
-
+		
+		protected Socket client;
+		
 		public abstract TDNRoot invoke(TDNRoot params) throws RequestParamsException, RequestGeneralException;
 	}
 
