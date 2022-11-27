@@ -110,11 +110,11 @@ public class SimulatedRobot implements TDNReceiverListener
             logger.log(">\t" + request);
             logger.log("params:");
             logRoot(params, logger, ">\t");
-            TDNValue array = new TDNValue(new TDNArray(new Object[] {0, 1, 2, 3, 4}, TDNParsers.INTEGER), TDNParsers.ARRAY);
-            TDNRoot root = new TDNRoot();
-            root.insertValue("cislo", new TDNValue(420.69f, TDNParsers.FLOAT));
-            root.insertValue("druhePole", array);
-            root.insertValue("mujText", new TDNValue("Ahoj, tohle je text", TDNParsers.STRING));
+            
+            switch(request)
+            {
+            	
+            }
             
             return new TDNRoot();
                     /*.insertValue("mojePole", array)
