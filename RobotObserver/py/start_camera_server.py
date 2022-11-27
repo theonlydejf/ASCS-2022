@@ -1,7 +1,7 @@
 import json
 import argparse
-import apriltag
 import cv2 as cv
+import numpy as np
 
 from time import sleep
 from calib_rect import CalibrationRectangle
@@ -45,6 +45,11 @@ def main():
     bridge.start()
     robot_detector.calibrate_plane()
 
+    cv.imshow("img", np.zeros((100, 100)))
+    cv.setWindowProperty("img", cv.WND_PROP_TOPMOST, 1)
+    cv.waitKey(1)
+    cv.setWindowProperty("img", cv.WND_PROP_TOPMOST, 0)
+    cv.setWindowProperty("img", cv.WND_PROP_AUTOSIZE, 0)
     while bridge.isConnected():
         robots, img = robot_detector.detect()
         data = json.dumps({"robots": robots})
@@ -52,6 +57,21 @@ def main():
         if args.graphics:
             cv.imshow("img", img)
             cv.waitKey(1)
+
+def _resizeWithAspectRatio(image, width=None, height=None, inter=cv.INTER_AREA):
+    dim = None
+    (h, w) = image.shape[:2]
+
+    if width is None and height is None:
+        return image
+    if width is None:
+        r = height / float(h)
+        dim = (int(w * r), height)
+    else:
+        r = width / float(w)
+        dim = (width, int(h * r))
+
+    return cv.resize(image, dim, interpolation=inter)
 
 if __name__ == "__main__":
     main()

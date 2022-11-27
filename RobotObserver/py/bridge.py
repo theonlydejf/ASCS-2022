@@ -1,5 +1,4 @@
 import socket
-import asyncio
 import atexit
 import threading
 from asyncio import IncompleteReadError  # only import the exception class

@@ -73,7 +73,6 @@ public class RobotCorrector implements RobotObserverListener
             if(System.currentTimeMillis() - robot.lastSendTime >= 200)
             {
                 robot.sender.send(model.toTDN());
-                System.out.println(" sent to " + model.id + ": " + model.toTDN());
                 robot.lastSendTime = System.currentTimeMillis();
             }
         } 
