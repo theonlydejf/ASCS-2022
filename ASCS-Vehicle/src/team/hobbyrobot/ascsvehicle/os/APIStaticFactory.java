@@ -60,8 +60,10 @@ public class APIStaticFactory
 		if(port < 0)
 			throw new RuntimeException("Port was not specified when creating API");
 		
+        @SuppressWarnings("unchecked")
 		Referenceable<Float> percentage = (Referenceable<Float>) _percentage;
-		final ArrayList<String> msgFeed = (ArrayList<String>) _msgFeed;
+		@SuppressWarnings("unchecked")
+        final ArrayList<String> msgFeed = (ArrayList<String>) _msgFeed;
 		
 		api = new TDNAPIServer(getPort(), getAPILogger(), SubOSController.errorLogger);
 		api.setVerbosity(logger == null ? VerbosityLogger.DEFAULT : logger.getVerbosityLevel());
