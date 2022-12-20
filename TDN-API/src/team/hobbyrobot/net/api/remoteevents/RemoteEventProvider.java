@@ -2,11 +2,13 @@ package team.hobbyrobot.net.api.remoteevents;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.LinkedList;
 
+import team.hobbyrobot.logging.Logger;
 import team.hobbyrobot.tdn.base.TDNParsers;
 import team.hobbyrobot.tdn.core.TDNRoot;
 import team.hobbyrobot.tdn.core.TDNValue;
@@ -17,6 +19,8 @@ public class RemoteEventProvider
     public static final String PARAMS_KEY = "params";
     
     private LinkedList<EventListener> _listeners = new LinkedList<EventListener>();
+    
+    private Object _eventLock = new Object();
     
     public void connectListener(String ip, int port) throws UnknownHostException, IOException
     {
@@ -33,8 +37,25 @@ public class RemoteEventProvider
     
     public void newEvent(String event, TDNRoot params) throws IOException
     {
-        for(EventListener l : _listeners)
-            createRoot(event, params).writeToStream(l.bw);
+    	synchronized(_eventLock)
+    	{
+    		for(EventListener l : _listeners)
+    		{
+    			createRoot(event, params).writeToStream(l.bw);
+    			l.bw.flush();
+    		}
+    		   
+    		System.out.println("Notified " + _listeners.size() + " listeners about event: " + event);
+    		// Wait to give listeners time to receive the event
+    		/*try
+			{
+				Thread.sleep(200);
+			}
+			catch (InterruptedException e)
+			{
+				return;
+			}*/
+    	}
     }
     
     private static TDNRoot createRoot(String event, TDNRoot params)

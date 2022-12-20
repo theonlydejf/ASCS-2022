@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/RemoteLogger"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/TDN-API"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/TDN"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/RobotObserver"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/EV3-subOS"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-15">
 		<attributes>
 			<attribute name="module" value="true"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="lib" path="lib/json-simple-1.1.1.jar"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/RemoteLogger"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/TDN-API"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/TDN"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/RobotObserver"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/EV3-subOS"/>
+	<classpathentry kind="lib" path="/Users/david/Documents/leJOS EV3 0.9.1/lib/ev3/ev3classes.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

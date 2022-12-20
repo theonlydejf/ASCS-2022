@@ -14,6 +14,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import team.hobbyrobot.graphics.PaintPanel;
 import team.hobbyrobot.net.api.streaming.TDNSender;
 import team.hobbyrobot.python.Bridge;
 import team.hobbyrobot.robotobserver.*;
@@ -27,7 +28,8 @@ public class StorageObserverWindow extends JFrame
      */
     private static final long serialVersionUID = 1L;
 
-    private RobotViewer _robotViewer;
+    private RobotViewerGraphics _robotViewerGraphics;
+    private PaintPanel _robotViewer;
     private TDNSender _tdnSender;
 
     public static void main(String[] args) throws IOException, ParseException 
@@ -50,7 +52,8 @@ public class StorageObserverWindow extends JFrame
         RobotObserver observer = new RobotObserver(bridge);
         RobotCorrector corrector = new RobotCorrector(observer);
         _tdnSender = new TDNSender("localhost", 3333);
-        _robotViewer = new RobotViewer(observer, 2340);
+        _robotViewer = new PaintPanel();
+        _robotViewerGraphics = new RobotViewerGraphics(observer, _robotViewer, 2340);
 
         JButton btn = new JButton();
         btn.setLocation(0,  0);

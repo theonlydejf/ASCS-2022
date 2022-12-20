@@ -34,9 +34,12 @@ public class TDNAPIServer implements ClientRegisterer, Runnable, Closeable
 	public static final String PARAMS_KEYWORD = "params";
 
 	// - Constants for parsing responses - //
-	public static final String ERROR_CODE_KEYWORD = "error-code";
+	public static final String ERROR_CODE_KEYWORD = "errorCode";
 	public static final String ERROR_DETAILS_KEYWORD = "details";
 	public static final String DATA_KEYWORD = "data";
+	public static final String PARSE_TOOK_KEYWORD = "parseTook";
+	public static final String RESPONSE_TOOK_KEYWORD = "responseTook";
+	public static final String PROCESS_TOOK_KEYWORD = "took";
 
     public static final String API_SERVICE_NAME = "API";
     public static final String HEARTBEAT_REQUEST_NAME = "Heartbeat";
@@ -170,9 +173,9 @@ public class TDNAPIServer implements ClientRegisterer, Runnable, Closeable
 				if (response != null)
 				{
 					int responseTook = partSw.elapsed();
-					response.insertValue("took", new TDNValue(sw.elapsed(), TDNParsers.INTEGER));
-					response.insertValue("parseTook", new TDNValue(parseTook, TDNParsers.INTEGER));
-					response.insertValue("responseTook", new TDNValue(responseTook, TDNParsers.INTEGER));
+					response.insertValue(PROCESS_TOOK_KEYWORD, new TDNValue(sw.elapsed(), TDNParsers.INTEGER));
+					response.insertValue(PARSE_TOOK_KEYWORD, new TDNValue(parseTook, TDNParsers.INTEGER));
+					response.insertValue(RESPONSE_TOOK_KEYWORD, new TDNValue(responseTook, TDNParsers.INTEGER));
 
 					response.writeToStream(client.writer);
 				}
@@ -195,7 +198,7 @@ public class TDNAPIServer implements ClientRegisterer, Runnable, Closeable
 		// Check if a valid service is contained inside the request
 		TDNValue serviceStr = request.get(SERVICE_KEYWORD);
 		if (serviceStr == null || !serviceStr.parser().typeKey().equals(TDNParsers.STRING.typeKey()))
-			return ResponseFactory.createExceptionResponse(ErrorCode.UNKNOWN_SERVICE,
+			return ResponseFactory.createExceptionResponse(APIErrorCode.UNKNOWN_SERVICE,
 				"Unable to find service in the root");
 
 		// True if the user is requesting api service
@@ -210,20 +213,20 @@ public class TDNAPIServer implements ClientRegisterer, Runnable, Closeable
 		Service service = services.get((String) serviceStr.value);
 		// Check if the requested service is unknown
 		if (service == null)
-			return ResponseFactory.createExceptionResponse(ErrorCode.UNKNOWN_SERVICE,
+			return ResponseFactory.createExceptionResponse(APIErrorCode.UNKNOWN_SERVICE,
 				"Service \"" + (String) serviceStr.value + "\" is not registered");
 
 		// Check if a valid request name is contained inside the request
 		TDNValue requestName = request.get(REQUEST_KEYWORD);
 		if (requestName == null || !requestName.parser().typeKey().equals(TDNParsers.STRING.typeKey()))
-			return ResponseFactory.createExceptionResponse(ErrorCode.UNKNOWN_REQUEST,
+			return ResponseFactory.createExceptionResponse(APIErrorCode.UNKNOWN_REQUEST,
 				"Unable to find request in the root");
 
 		// Check if a valid params root is contained inside the request
 		TDNValue params = request.get(PARAMS_KEYWORD);
 		if (params != null)
 			if (!params.parser().typeKey().equals(TDNParsers.ROOT.typeKey()))
-				return ResponseFactory.createExceptionResponse(ErrorCode.PARAMS_ERROR,
+				return ResponseFactory.createExceptionResponse(APIErrorCode.PARAMS_ERROR,
 					"Unable to find params in the root");
 
 		try
@@ -234,17 +237,17 @@ public class TDNAPIServer implements ClientRegisterer, Runnable, Closeable
 		}
 		catch (UnknownRequestException e)
 		{
-			return ResponseFactory.createExceptionResponse(ErrorCode.UNKNOWN_REQUEST,
+			return ResponseFactory.createExceptionResponse(APIErrorCode.UNKNOWN_REQUEST,
 				"Unknown request: " + (String) requestName.value);
 		}
 		catch (RequestParamsException e)
 		{
-			return ResponseFactory.createExceptionResponse(ErrorCode.PARAMS_ERROR,
+			return ResponseFactory.createExceptionResponse(APIErrorCode.PARAMS_ERROR,
 				e.message + "; Bad params: " + joinStr(", ", e.badParams));
 		}
 		catch (RequestGeneralException e)
 		{
-			return ResponseFactory.createExceptionResponse(ErrorCode.GENERAL_EXCEPTION, e.details);
+			return ResponseFactory.createExceptionResponse(APIErrorCode.GENERAL_EXCEPTION, e.details);
 		}
 	}
 

@@ -163,8 +163,6 @@ public class ASCSVehicle implements TDNPoseCorrectionProviderListener
 			new String[] { "0:team.hobbyrobot.ascsvehicle.os.ASCSVehicleHardware:calibrateDefaultLifter",
 					"1:team.hobbyrobot.ascsvehicle.os.APIStaticFactory:createAPI"}).start();
 		
-		/*new LoadingScreen("Starting API", 
-			new String[] {  }).start();*/
 		api = APIStaticFactory.getLastAPIServer();
 	}
 

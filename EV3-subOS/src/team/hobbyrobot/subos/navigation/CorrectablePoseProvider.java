@@ -18,7 +18,7 @@ public class CorrectablePoseProvider implements PoseProvider
 	
 	public void correct()
 	{
-	   Logger.main.log("Trying to correcto pose. Available: " + _corrector.correctionAvailable());
+	   Logger.main.log("Trying to correct pose. Available: " + _corrector.correctionAvailable());
        if(_corrector.correctionAvailable())
             _main.setPose(_corrector.getPose());
 	}

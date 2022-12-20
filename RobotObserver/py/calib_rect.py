@@ -48,7 +48,7 @@ class CalibrationRectangle:
     def map_point(self, p):
         dists = _lineseg_dists(p, self._corners1, self._corners2)
         sx = (dists[3] / (dists[1] + dists[3])) * self.w 
-        sy = (dists[0] / (dists[0] + dists[2])) * self.h
+        sy = (dists[2] / (dists[0] + dists[2])) * self.h
         return np.array([sx, sy])
 
     def draw(self, img, color):

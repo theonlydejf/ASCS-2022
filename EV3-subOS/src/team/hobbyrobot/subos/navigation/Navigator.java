@@ -30,9 +30,9 @@ public class Navigator implements WaypointListener, MoveListener
 	 * 
 	 * @param pilot
 	 */
-	public Navigator(RotateMoveController pilot, Chassis chassis, Logger logger)
+	public Navigator(RotateMoveController pilot, Logger logger)
 	{
-		this(pilot, null, chassis, logger);
+		this(pilot, null, logger);
 	}
 
 	/**
@@ -42,7 +42,7 @@ public class Navigator implements WaypointListener, MoveListener
 	 * @param pilot        the pilot
 	 * @param poseProvider the custom PoseProvider
 	 */
-	public Navigator(RotateMoveController pilot, PoseProvider poseProvider, Chassis chassis, Logger logger)
+	public Navigator(RotateMoveController pilot, PoseProvider poseProvider, Logger logger)
 	{
 		this._logger = logger == null ? new Logger() : logger.createSubLogger("Nav");
 		_pilot = pilot;
@@ -228,7 +228,7 @@ public class Navigator implements WaypointListener, MoveListener
 	 * @param angle The absolute heading to rotate the robot to. Value is 0 to 360.
 	 * @return true if the rotation happened, false if the robot was moving while this method was called.
 	 */
-	public boolean rotateTo(double angle)
+	public boolean rotateTo(double angle, boolean immidiateReturn)
 	{
 		float head = getPoseProvider().getPose().getHeading();
 		double diff = angle - head;
@@ -239,7 +239,7 @@ public class Navigator implements WaypointListener, MoveListener
 		if (isMoving())
 			return false;
 		if (_pilot instanceof RotateMoveController)
-			((RotateMoveController) _pilot).rotate(diff, false);
+			((RotateMoveController) _pilot).rotate(diff, immidiateReturn);
 		return true;
 
 	}
@@ -406,6 +406,9 @@ public class Navigator implements WaypointListener, MoveListener
 				Thread.yield();
 			// Wait until move has finished or Navigator is interrupted
 			while (!_moveFinished && _keepGoing)
+				Thread.yield();
+			// Wait until pilot is ready to receive commands or Navigator is interrupted
+			while (_pilot.isMoving() && _keepGoing)
 				Thread.yield();
 			
 			// Update robots pose

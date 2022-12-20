@@ -14,6 +14,12 @@
             "params-types": [ "flt" ],
             "response": [ ]
         },
+        "rotateTo":
+        {
+            "params": [ "angle" ],
+            "params-types": [ "flt" ],
+            "response": [ ]
+        },
         "getPose":
         {
             "params": [ ],
@@ -41,7 +47,7 @@
         "followPath":
         {
             "params": [ "path" ],
-            "params-types": [ "arr|obj" ],
+            "params-types": [ "arr|obj(x:flt,y:flt,heading:flt)" ],
             "response": [ ]
         },
         "continuePath":
@@ -55,6 +61,12 @@
             "params": [ ],
             "params-types": [ ],
             "response": [ "pathCompleted" ]
+        },
+        "getRemainingPathCount":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ "remainingPathCount" ]
         },
         "setSpeed":
         {
@@ -96,6 +108,18 @@
         {
             "params": [ "heading" ],
             "params-types": [ "flt" ],
+            "response": [ ]
+        },
+        "getExpectedHeading":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ ]
+        },
+        "registerMoveListener":
+        {
+            "params": [ "port", "id" ],
+            "params-types": [ "int", "int" ],
             "response": [ ]
         }
     }

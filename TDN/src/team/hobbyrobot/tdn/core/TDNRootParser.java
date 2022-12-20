@@ -51,7 +51,10 @@ public class TDNRootParser implements TDNTypeParser
         reader.queueCharacter((char)firstChar);
         String type = reader.readType();
         String key = reader.readKey();
-        TDNValue value = reader.settings.parsers().get(type).readFromStream(reader);
+        TDNTypeParser parser = reader.settings.parsers().get(type);
+        if(parser == null)
+        	throw new RuntimeException("Error when parsing TDN: \"" + type + "\" is not known type!");
+        TDNValue value = parser.readFromStream(reader);
 
         return new AbstractMap.SimpleEntry<String, TDNValue>(key, value);
     }
@@ -63,7 +66,10 @@ public class TDNRootParser implements TDNTypeParser
         
         for(Entry<String, TDNValue> notatedValue : obj)
         {
-        	writer.writeType(notatedValue.getValue().parser().typeKey());
+            TDNTypeParser parser = notatedValue.getValue().parser();
+            if(parser == null)
+            	throw new RuntimeException("Error when parsing root" + obj.toString() + ": parser is null!");
+        	writer.writeType(parser.typeKey());
             writer.writeKey(notatedValue.getKey());
             notatedValue.getValue().parser().writeToStream(writer, notatedValue.getValue().value);
         }

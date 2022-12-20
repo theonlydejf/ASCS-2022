@@ -19,8 +19,37 @@ public class TDNViewer {
         Scanner scanner = new Scanner(System.in);
         String tdnStr = scanner.nextLine();
         StringReader reader = new StringReader(tdnStr);
-        TDNRoot root = TDNRoot.readFromStream(new BufferedReader(reader));
-        System.out.println(root.toString());
+        /*int rootCnt = 0;
+        int cnt = 0;
+        while(true)
+        {
+        	int i = reader.read();
+        	if(i < 0)
+        		break;
+        	
+        	if((char)i == ';')
+        		cnt--;
+        	if((char)i == '|')
+        		cnt++;
+        	if(cnt < 0)
+        	{
+        		rootCnt++;
+        		cnt = 0;
+        	}
+        }
+        reader.reset();*/
+        while(true)
+        {
+        	reader.mark(1);
+        	int i = reader.read();
+        	if(i < 0)
+        		break;
+        	reader.reset();
+	        TDNRoot root = TDNRoot.readFromStream(new BufferedReader(reader));
+	        if(root.toString().length() <= 4)
+	        	break;
+	        System.out.println(root.toString());
+        }
     }
 
 }

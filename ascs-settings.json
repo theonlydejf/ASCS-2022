@@ -1,4 +1,5 @@
 {
+    "event-server-port": 5555,
     "robot-observer":
     {
         "detector-rscs-path": "/Users/david/Documents/MAP/robot_detector.rscs",

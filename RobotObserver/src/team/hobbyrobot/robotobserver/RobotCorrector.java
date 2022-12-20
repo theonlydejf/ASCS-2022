@@ -13,8 +13,10 @@ public class RobotCorrector implements RobotObserverListener
 {
     private RobotObserver _observer;
     
-    private Object _tableLock = new Object(); 
+    private Object _targetTableLock = new Object(); 
+    private Object _modelTableLock = new Object();
     private Hashtable<Integer, RobotInfo> _targetedRobots = new Hashtable<Integer, RobotInfo>();
+    private Hashtable<Integer, RobotModel> _robotModels = new Hashtable<Integer, RobotModel>();
 
     public RobotCorrector(RobotObserver observer)
     {
@@ -28,7 +30,7 @@ public class RobotCorrector implements RobotObserverListener
             robot.connect();
         
         System.out.println("Robot " + id + " is connected!");
-        synchronized(_tableLock)
+        synchronized(_targetTableLock)
         {
             _targetedRobots.put(id, new RobotInfo(robot, id, System.currentTimeMillis()));            
         }
@@ -37,7 +39,7 @@ public class RobotCorrector implements RobotObserverListener
     public void stopCorrectingRobot(int id) throws IOException
     {
         RobotInfo robot = _targetedRobots.get(id);
-        synchronized(_tableLock)
+        synchronized(_targetTableLock)
         {
             _targetedRobots.remove(id);
         }
@@ -50,9 +52,10 @@ public class RobotCorrector implements RobotObserverListener
         for(Object json : robots)
         {
             JSONObject robotJSON = (JSONObject) json;
+            RobotModel model = RobotModel.fromJSON(robotJSON);
             
             RobotInfo robot = null;
-            synchronized(_tableLock)
+            synchronized(_targetTableLock)
             {
                 int robotID = (int)(long)robotJSON.get("id");
                 if(_targetedRobots.containsKey(robotID))
@@ -62,7 +65,20 @@ public class RobotCorrector implements RobotObserverListener
             if(robot == null)
                 continue;
             
-            correctRobot(robot, RobotModel.fromJSON(robotJSON));
+            synchronized(_modelTableLock)
+            {
+                _robotModels.put(robot.id, model);
+            }
+            
+            correctRobot(robot, model);
+        }
+    }
+    
+    public RobotModel getRobotModel(int id)
+    {
+        synchronized(_modelTableLock)
+        {
+            return _robotModels.get(id);
         }
     }
     

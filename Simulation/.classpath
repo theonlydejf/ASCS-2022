@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.launching.macosx.MacOSXType/Java SE 8 [1.8.0_301]"/>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="lib" path="lib/json-simple-1.1.1.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/ASCS-Vehicle"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/EV3-subOS"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/RemoteLogger"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/TDN"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/TDN-API"/>
+	<classpathentry kind="lib" path="/Users/david/Documents/leJOS EV3 0.9.1/lib/ev3/ev3classes.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

@@ -1,6 +1,6 @@
 package team.hobbyrobot.net.api;
 
-enum ErrorCode
+public enum APIErrorCode
 {
 	SUCCESS(0),
 	UNKNOWN_SERVICE(1),
@@ -10,12 +10,12 @@ enum ErrorCode
 	
 	private int intValue;
 	
-	ErrorCode(int val)
+	private APIErrorCode(int val)
 	{
 		intValue = val;
 	}
 	
-	int getIntValue()
+	public int getIntValue()
 	{
 		return intValue;
 	}

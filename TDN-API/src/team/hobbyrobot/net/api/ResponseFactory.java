@@ -6,7 +6,7 @@ import team.hobbyrobot.tdn.core.*;
 // TODO: dodelat
 class ResponseFactory
 {	
-	public static TDNRoot createExceptionResponse(ErrorCode errorCode, String details)
+	public static TDNRoot createExceptionResponse(APIErrorCode errorCode, String details)
 	{
 		return createRawResponse(errorCode.getIntValue(), new TDNRoot().insertValue(TDNAPIServer.ERROR_DETAILS_KEYWORD, new TDNValue(details, TDNParsers.STRING)));
 	}
@@ -21,6 +21,6 @@ class ResponseFactory
 	{
 		if(data == null)
 			return null;
-		return createRawResponse(ErrorCode.SUCCESS.getIntValue(), data);
+		return createRawResponse(APIErrorCode.SUCCESS.getIntValue(), data);
 	}
 }

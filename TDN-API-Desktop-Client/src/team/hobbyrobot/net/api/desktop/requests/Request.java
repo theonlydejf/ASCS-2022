@@ -32,7 +32,7 @@ public class Request
     public TDNRoot toTDN(TDNValue... params)
     {
         TDNRoot paramsFinal = new TDNRoot();
-        for(int i = 0; i < this.params.length; i++)
+        for(int i = 0; i < params.length; i++)
         {
             paramsFinal.insertValue(this.params[i], params[i]);
         }

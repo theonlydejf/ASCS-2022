@@ -42,6 +42,11 @@ public class TDNArray implements Iterable<Object>
     	return out;
     }
     
+    public TDNValue asTDNValue()
+    {
+    	return new TDNValue(this, TDNParsers.ARRAY);
+    }
+    
 	@Override
 	public Iterator<Object> iterator()
 	{

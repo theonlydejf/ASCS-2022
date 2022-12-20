@@ -21,7 +21,8 @@ public class RemoteMoveEventProvider extends RemoteEventProvider implements Move
     private static final TDNRoot BASE_WAYPOINT_TDN;
     private static final TDNRoot BASE_POSE_TDN;
     private static final TDNRoot BASE_WAYPOINT_PARAMS;
-    
+    private static final TDNRoot BASE_MOVE_PARAMS;
+
     static
     {
         BASE_MOVE_TDN = new TDNRoot()
@@ -40,16 +41,27 @@ public class RemoteMoveEventProvider extends RemoteEventProvider implements Move
                 .insertValue("y", new TDNValue(0f, TDNParsers.FLOAT))
                 .insertValue("heading", new TDNValue(0f, TDNParsers.FLOAT));
         BASE_WAYPOINT_PARAMS = new TDNRoot()
+        		.insertValue("id", new TDNValue(-1, TDNParsers.INTEGER))
                 .insertValue("waypoint", new TDNValue(BASE_WAYPOINT_TDN, TDNParsers.ROOT))
                 .insertValue("pose", new TDNValue(BASE_POSE_TDN, TDNParsers.ROOT));
+        BASE_MOVE_PARAMS = new TDNRoot()
+    		.insertValue("id", new TDNValue(-1, TDNParsers.INTEGER))
+        	.insertValue("move", new TDNValue(BASE_MOVE_TDN, TDNParsers.ROOT));
+    }
+    
+    private int _robotId;
+    
+    public RemoteMoveEventProvider(int robotId)
+    {
+    	_robotId = robotId;
     }
     
     @Override
     public void moveStarted(Move event, MoveProvider mp) 
     {
-        try 
+        try
         {
-            newEvent("moveStarted", setParsedMove(event));
+            newEvent("moveStarted", setParsedMoveParams(event, _robotId));
         } 
         catch (IOException e) 
         {
@@ -62,7 +74,7 @@ public class RemoteMoveEventProvider extends RemoteEventProvider implements Move
     {
         try 
         {
-            newEvent("moveStopped", setParsedMove(event));
+            newEvent("moveStopped", setParsedMoveParams(event, _robotId));
         } 
         catch (IOException e) 
         {
@@ -75,7 +87,8 @@ public class RemoteMoveEventProvider extends RemoteEventProvider implements Move
     {
         try 
         {
-            newEvent("atWaypoint", setParsedWaypointParams(waypoint, pose));
+            newEvent("atWaypoint", setParsedWaypointParams(waypoint, pose, _robotId)
+            	.insertValue("sequence", new TDNValue(sequence, TDNParsers.INTEGER)));
         } 
         catch (IOException e) 
         {
@@ -88,7 +101,8 @@ public class RemoteMoveEventProvider extends RemoteEventProvider implements Move
     {
         try 
         {
-            newEvent("pathComplete", setParsedWaypointParams(waypoint, pose));
+            newEvent("pathComplete", setParsedWaypointParams(waypoint, pose, _robotId)
+            	.insertValue("sequence", new TDNValue(sequence, TDNParsers.INTEGER)));
         } 
         catch (IOException e) 
         {
@@ -101,12 +115,23 @@ public class RemoteMoveEventProvider extends RemoteEventProvider implements Move
     {
         try 
         {
-            newEvent("pathInterrupted", setParsedWaypointParams(waypoint, pose));
+            newEvent("pathInterrupted", setParsedWaypointParams(waypoint, pose, _robotId)
+            	.insertValue("sequence", new TDNValue(sequence, TDNParsers.INTEGER)));
         } 
         catch (IOException e) 
         {
             e.printStackTrace();
         }
+    }
+    
+    public void setID(int id)
+    {
+    	_robotId = id;
+    }
+    
+    public int getID(int id)
+    {
+    	return _robotId;
     }
     
     private static TDNRoot setParsedMove(Move mv)
@@ -142,11 +167,20 @@ public class RemoteMoveEventProvider extends RemoteEventProvider implements Move
         return tdn;
     }
     
-    private static TDNRoot setParsedWaypointParams(Waypoint wp, Pose p)
+    private static TDNRoot setParsedWaypointParams(Waypoint wp, Pose p, int id)
     {
         setParsedWaypoint(wp);
         setParsedPose(p);
+        BASE_WAYPOINT_PARAMS.get("id").value = id;
         
         return BASE_WAYPOINT_PARAMS;
+    }
+    
+    private static TDNRoot setParsedMoveParams(Move m, int id)
+    {
+        setParsedMove(m);
+        BASE_MOVE_PARAMS.get("id").value = id;
+        
+        return BASE_MOVE_PARAMS;
     }
 }

@@ -17,8 +17,10 @@ import team.hobbyrobot.subos.hardware.GyroRobotHardware;
 import temp.PIDTuner;
 
 /**
- * Implementation of RotateMoveController using {@link team.hobbyrobot.subos.navigation.MoveHandler MoveHandler}.
- * All move processors use gyro from  {@link team.hobbyrobot.subos.hardware.GyroRobotHardware GyroRobotHardware} to correct the
+ * Implementation of RotateMoveController using {@link team.hobbyrobot.subos.navigation.MoveHandler
+ * MoveHandler}.
+ * All move processors use gyro from {@link team.hobbyrobot.subos.hardware.GyroRobotHardware
+ * GyroRobotHardware} to correct the
  * movement.
  * 
  * @author David Krcmar
@@ -39,6 +41,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 
 	/**
 	 * Creates instance of CompassPilot
+	 * 
 	 * @param hardware The RobotHardware the pilot should control
 	 */
 	public CompassPilot(GyroRobotHardware hardware)
@@ -217,7 +220,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 	{
 		return moveHandler.wasLastMoveLimited();
 	}
-	
+
 	@Override
 	public void setRotateLimit(double limit)
 	{
@@ -229,9 +232,10 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 	{
 		return moveHandler.getRotateLimit();
 	}
-	
+
 	/**
 	 * Gets the current linear minimal speed of the pilot
+	 * 
 	 * @return The linear minimal speed, the robot is allowed to move at
 	 */
 	public int getLinearMinSpeed()
@@ -241,6 +245,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 
 	/**
 	 * Sets the current linear minimal speed of the pilot
+	 * 
 	 * @param minSpeed The linear minimal speed, the robot is allowed to move at
 	 */
 	public void setLinearMinSpeed(int minSpeed)
@@ -249,18 +254,20 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 	}
 
 	/**
-     * Gets the current angular minimal speed of the pilot
-     * @return The angular minimal speed, the robot is allowed to move at
-     */
+	 * Gets the current angular minimal speed of the pilot
+	 * 
+	 * @return The angular minimal speed, the robot is allowed to move at
+	 */
 	public int getAngularMinSpeed()
 	{
 		return _angularMinSpeed;
 	}
 
-   /**
-     * Sets the current angular minimal speed of the pilot
-     * @param minSpeed The angular minimal speed, the robot is allowed to move at
-     */
+	/**
+	 * Sets the current angular minimal speed of the pilot
+	 * 
+	 * @param minSpeed The angular minimal speed, the robot is allowed to move at
+	 */
 	public void setAngularMinSpeed(int minSpeed)
 	{
 		_angularMinSpeed = minSpeed;
@@ -270,6 +277,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 	 * Sets the heading, the robot is expected to travel at. The move processor for Travel
 	 * then tries to stay at this heading for the duration of the travel. The move processor
 	 * for Rotate automatically updates the expected heading.
+	 * 
 	 * @param heading The heading, robot is expected to travel at
 	 */
 	public void setExpectedHeading(float heading)
@@ -277,54 +285,64 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 		_expectedHeading = heading;
 	}
 
+	/**
+	 * Gets the heading, the robot is expected to travel at.
+	 * 
+	 * @return The heading, robot is expected to travel at
+	 */
+	public float getExpectedHeading()
+	{
+		return _expectedHeading;
+	}
+
 	private static float normalizeAng(float ang)
 	{
-	    while(ang >= 360)
-	        ang -= 360;
-	    while(ang < 0)
-	        ang += 360;
-	    
-	    return ang;
+		while (ang >= 360)
+			ang -= 360;
+		while (ang < 0)
+			ang += 360;
+
+		return ang;
 	}
-	
+
 	//TODO: - Calibrate PID
 	//		- Better stopping - do rotate multiple times to ensure 
 	//         correct heading (wait between each rotate)
-    /**
-     * Implementation of rotate, corrected by a gyroscope
-     * 
-     * @author David Krcmar
-     */
+	/**
+	 * Implementation of rotate, corrected by a gyroscope
+	 * 
+	 * @author David Krcmar
+	 */
 	public class RotateProcessor implements MoveProcessor
 	{
 		public static final int PID_CONTROL_PERIOD = 30; //ms
-		
+
 		/** Minimal speed, the robot is allowed to rotate at */
 		public float minSpeed;
 		/** Constant used for accelerating */
 		public float accelConst;
-		
-		/** 
-		 * If true, parameters are reseted to defaults from the current instance of 
+
+		/**
+		 * If true, parameters are reseted to defaults from the current instance of
 		 * {@link team.hobbyrobot.subos.navigation.CompassPilot CompassPilot} when
 		 * the {@link team.hobbyrobot.subos.navigation.MoveProcessor#reset reset()}
 		 * method is called
 		 */
 		public boolean resetParams;
-		
+
 		private PID _pid;
 		private Stopwatch _pidSw;
 		private Accelerator _accelerator;
 		private float _angleRotatedAtMoveStart = 0;
-		
+
 		public RotateProcessor()
 		{
-		    this(true);
+			this(true);
 		}
-		
+
 		public RotateProcessor(boolean resetParams)
 		{
-		    this.resetParams = resetParams;
+			this.resetParams = resetParams;
 			try
 			{
 				//_pid = new PIDTuner(.8, .0001, 0, 0, 1234);
@@ -339,9 +357,9 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			
-	         _pidSw = new Stopwatch();
-	        _accelerator = new Accelerator(CompassPilot.this._angularMinSpeed);
+
+			_pidSw = new Stopwatch();
+			_accelerator = new Accelerator(CompassPilot.this._angularMinSpeed);
 		}
 
 		@Override
@@ -350,24 +368,27 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			// If the robot should rotate without limit -> skip regulation
 			if (Double.isInfinite(targetMove.getAngleTurned()))
 			{
-				controlMotors((int) (targetMove.getRotateSpeed() * Math.signum(targetMove.getAngleTurned())), 100, false);
+				controlMotors((int) (targetMove.getRotateSpeed() * Math.signum(targetMove.getAngleTurned())), 100,
+					false);
 				return false;
 			}
 
 			// Angle travelled since the move has started
 			float travelledAng = hardware.getAngle() - _angleRotatedAtMoveStart;
-			
+
 			// True, if the move has completed
-			boolean rotateCompleted = (targetMove.getAngleTurned() - travelledAng) * Math.signum(targetMove.getAngleTurned()) <= 0; //Math.round(travelledAng) == Math.round(targetMove.getAngleTurned());
-			
-	         // If the move has completed -> set the heading, at which the robot is expected to be
-            if (rotateCompleted)
-                CompassPilot.this._expectedHeading = normalizeAng(_angleRotatedAtMoveStart + targetMove.getAngleTurned());
-			
-            // Limit the method to control motors only once per PID_CONTROL_PERIOD miliseconds
+			boolean rotateCompleted = (targetMove.getAngleTurned() - travelledAng)
+				* Math.signum(targetMove.getAngleTurned()) <= 0; //Math.round(travelledAng) == Math.round(targetMove.getAngleTurned());
+
+			// If the move has completed -> set the heading, at which the robot is expected to be
+			if (rotateCompleted)
+				CompassPilot.this._expectedHeading = normalizeAng(
+					_angleRotatedAtMoveStart + targetMove.getAngleTurned());
+
+			// Limit the method to control motors only once per PID_CONTROL_PERIOD miliseconds
 			if (_pidSw.elapsed() < PID_CONTROL_PERIOD || rotateCompleted)
 				return rotateCompleted;
-			
+
 			_pidSw.reset();
 
 			// Limit the rotate rate pid to the maximum rotate speed
@@ -407,17 +428,17 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			_angleRotatedAtMoveStart = hardware.getAngle();
 			_pid.reset();
 			_pidSw.reset();
-			
-			if(resetParams)
+
+			if (resetParams)
 			{
-			    _accelerator.reset(_angularMinSpeed);
-			    minSpeed = CompassPilot.this._angularMinSpeed;
-			    accelConst = (float) CompassPilot.this._angularAccel;
+				_accelerator.reset(_angularMinSpeed);
+				minSpeed = CompassPilot.this._angularMinSpeed;
+				accelConst = (float) CompassPilot.this._angularAccel;
 			}
 		}
 
 	}
-	
+
 	/**
 	 * Implementation of travel, corrected by a gyroscope
 	 * 
@@ -439,13 +460,13 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 		public float accelConst = 0;
 		/** The constant used for decelerating */
 		public float decelConst = 0;
-		
-		/** 
-         * If true, parameters are reseted to defaults from the current instance of 
-         * {@link team.hobbyrobot.subos.navigation.CompassPilot CompassPilot} when
-         * the {@link team.hobbyrobot.subos.navigation.MoveProcessor#reset reset()}
-         * method is called
-         */
+
+		/**
+		 * If true, parameters are reseted to defaults from the current instance of
+		 * {@link team.hobbyrobot.subos.navigation.CompassPilot CompassPilot} when
+		 * the {@link team.hobbyrobot.subos.navigation.MoveProcessor#reset reset()}
+		 * method is called
+		 */
 		public boolean resetParams = true;
 
 		private PID _pid;
@@ -456,12 +477,12 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 
 		public TravelProcessor()
 		{
-		    this(true);
+			this(true);
 		}
-		
+
 		public TravelProcessor(boolean resetParams)
 		{
-		    this.resetParams = resetParams;
+			this.resetParams = resetParams;
 			_pid = null;
 			try
 			{
@@ -488,26 +509,26 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 		@Override
 		public boolean step(Move targetMove)
 		{
-		    // Get target distance components
+			// Get target distance components
 			float travelTarget = targetMove.getDistanceTraveled();
 			float absTravelTarget = Math.abs(travelTarget);
 			int sgnTravelTarget = (int) Math.signum(travelTarget);
-			
+
 			// Calculate remaining distance
 			float travelled = hardware.getDrivenDist() - _distanceTravelledAtMoveStart;
 			float absTravelled = Math.abs(travelled);
 			float distanceRemaining = absTravelTarget - absTravelled;
-			
+
 			boolean travelCompleted = distanceRemaining <= 0;
 
 			// Limit the method to control motors only once per PID_CONTROL_PERIOD miliseconds
 			if (_pidSw.elapsed() < PID_CONTROL_PERIOD || travelCompleted)
 				return travelCompleted;
 			_pidSw.reset();
-			
+
 			// Calculate current deceleration speed
 			float decelSpeed = distanceRemaining * decelConst + endSpeed;
-		    // Clamp current decel speed to min and max speed
+			// Clamp current decel speed to min and max speed
 			if (decelSpeed > targetMove.getTravelSpeed())
 				decelSpeed = targetMove.getTravelSpeed();
 			else if (decelSpeed < endSpeed)
@@ -515,7 +536,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 
 			// Calculate current acceleration speed
 			float currSpeed = (float) _accelerator.getCurrentSpeed(accelConst);
-			
+
 			// If robot should start decelerating to get to target distance smoothly, use decel speed
 			// Accel speed does not have to be clamped, beacuse min speed is set in when initing
 			// Accelerator and max speed is clamped by decel speed
@@ -523,11 +544,10 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 				currSpeed = decelSpeed;
 
 			// Calculate regulation values from current angle and target angle
-			float currAng = hardware.getAngle() - normalizedAngleDiff;
+			float currAng = hardware.getAngle();// - normalizedAngleDiff;
 			_currPIDRate = _pid.getOutput(currAng, targetAngle);
-			Logger.main.log("travelling at angle: " + currAng + "\t target: " + targetAngle);
+			//Logger.main.log("travelling at angle: " + currAng + "\t target: " + targetAngle);
 
-			
 			controlMotors((int) currSpeed * sgnTravelTarget, _currPIDRate * sgnTravelTarget, false);
 
 			return travelCompleted;
@@ -539,24 +559,63 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			resetSteeringControlLoop();
 
 			_distanceTravelledAtMoveStart = hardware.getDrivenDist();
-			Logger.main.log("Travelling at expected heading: " + CompassPilot.this._expectedHeading);
+			//Logger.main.log("Travelling at expected heading: " + CompassPilot.this._expectedHeading);
 			_pidSw.reset();
 			_pid.reset();
 			_currPIDRate = 0;
-			
-			if(resetParams)
+
+			if (resetParams)
 			{
-			    targetAngle = CompassPilot.this._expectedHeading;
-			    normalizedAngleDiff = hardware.getAngle() - normalizeAng(hardware.getAngle());
-			    
-			    startSpeed = CompassPilot.this._linearMinSpeed;
-			    endSpeed = CompassPilot.this._linearMinSpeed;
-			    
-			    accelConst = (float) CompassPilot.this._linearAccel;
-			    decelConst = DECEL_CONSTANT;			    
-			    _accelerator.reset(startSpeed);
+				targetAngle = CompassPilot.this._expectedHeading;
+				//normalizedAngleDiff = hardware.getAngle() - normalizeAng(hardware.getAngle());
+				targetAngle = getTargetAng(CompassPilot.this.hardware.getAngle(), CompassPilot.this._expectedHeading);
+				//float startError = normalizedAngleDiff - hardware.getAngle();
+
+				startSpeed = CompassPilot.this._linearMinSpeed;
+				endSpeed = CompassPilot.this._linearMinSpeed;
+
+				accelConst = (float) CompassPilot.this._linearAccel;
+				decelConst = DECEL_CONSTANT;
+				_accelerator.reset(startSpeed);
 			}
-			
+
+		}
+
+		// TODO zkontrolovat
+		/**
+		 * Calculates the target angle, NOT HEADING, at which the robot should travel. 
+		 * It takes in consideration the current angle of the robot and the expected 
+		 * heading and calculates the closest angle to the curRaw with the same 
+		 * heading as the target. Eg:<br>
+		 * curRaw=361,targetCartesian=0 => 360<br>
+		 * curRaw=-95,targetCartesian=270 => -90
+		 * 
+		 * @param curRaw The angle, the robot is currently rotated
+		 * @param targetCartesian The heading, for which the closest angle should be calculated
+		 * @return The angle closest to curRaw, but with the same heading as targetCartesian
+		 */
+		private float getTargetAng(float curRaw, float targetCartesian)
+		{
+			float times360 = 0;
+			float adjustedAng = curRaw;
+			if (curRaw < 0)
+			{
+				while (adjustedAng < 0)
+				{
+					adjustedAng += 360;
+					times360++;
+				}
+			}
+
+			int remain = (int)(adjustedAng / 360);
+			float newAng = remain * 360 + targetCartesian - times360 * 360;
+
+			if (curRaw - newAng > 180)
+			{
+				newAng += 360;
+			}
+
+			return newAng;
 		}
 
 	}

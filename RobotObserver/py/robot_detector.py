@@ -161,7 +161,7 @@ class RobotDetector:
             #   Fix blinking tags
             x = robot_pos[0]
             y = robot_pos[1]
-            heading = (math.degrees(ang) + calib["dheading"])
+            heading = math.degrees(ang) + calib["dheading"]
 
             robots.append(_get_robot_dict(int(tag.tag_id), x, y, heading))
 

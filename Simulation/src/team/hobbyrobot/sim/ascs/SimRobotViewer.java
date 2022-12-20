@@ -1,24 +1,22 @@
-package team.hobbyrobot.net.api.desktop;
+package team.hobbyrobot.sim.ascs;
 
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.util.List;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import team.hobbyrobot.graphics.PaintPanel;
 import team.hobbyrobot.graphics.Paintable;
-import team.hobbyrobot.python.BridgeListener;
-import team.hobbyrobot.robotobserver.RobotObserver;
-import team.hobbyrobot.robotobserver.RobotObserverListener;
 
-public class RobotViewer extends PaintPanel implements RobotObserverListener
+public class SimRobotViewer extends PaintPanel
 {
 	private Object _robotsLock = new Object();
-	private JSONArray _robots = null;
+	private List<SimRobot> _robots = null;
 	
 	private static final Font errFont = new Font(Font.SANS_SERIF, Font.BOLD, 14);
 	private static final Font robotFont = new Font(Font.MONOSPACED, Font.PLAIN, 10);
@@ -26,12 +24,12 @@ public class RobotViewer extends PaintPanel implements RobotObserverListener
 	private double _scale = 1;
 	private double _realWidth;
 	
-	public RobotViewer(RobotObserver observer, double realWidth)
+	public SimRobotViewer(List<SimRobot> robots, double realWidth)
 	{
 		super();
 		_realWidth = realWidth;
+		_robots = robots;
 		addLayer(new Graphics());
-		observer.addListener(this);
 	}
 	
 	private class Graphics implements Paintable
@@ -40,26 +38,25 @@ public class RobotViewer extends PaintPanel implements RobotObserverListener
 		@Override
 		public void paint(Graphics2D g)
 		{
-		    
-		    _scale = RobotViewer.this.getWidth() / _realWidth;
+		    _scale = SimRobotViewer.this.getWidth() / _realWidth;
 			if(_robots == null || _robots.size() <= 0)
 			{
-				drawCenteredString(g, "NO ROBOTS FOUND", new Rectangle(0, 0, RobotViewer.this.getWidth(), RobotViewer.this.getHeight()), errFont, Color.red);
+				drawCenteredString(g, "NO ROBOTS FOUND", new Rectangle(0, 0, SimRobotViewer.this.getWidth(), SimRobotViewer.this.getHeight()), errFont, Color.red);
 				return;
 			}
 			
-			for(Object obj : _robots)
+			for(SimRobot robot : _robots)
 			{
-				JSONObject robot = (JSONObject) obj;
-				double x = (double) robot.get("x");
-				double y = (double) robot.get("y");
-				double heading = (double) robot.get("heading");
-				long id = (long) robot.get("id");
+				double x = (double) robot.pose.x;
+				double y = (double)  robot.pose.y;
+				double heading = (double) robot.pose.heading;
+				long id = (long) robot.id;
 				
-				double heading_rad = heading/180 * Math.PI;
+				double heading_rad = -heading/180 * Math.PI;
 				
 				x *= _scale;
 				y *= _scale;
+				y = (double)SimRobotViewer.this.getHeight() - y;
 				
 				g.setColor(Color.black);
 				g.fillOval((int)(x - 5), (int)(y - 5), 10, 10);
@@ -91,11 +88,4 @@ public class RobotViewer extends PaintPanel implements RobotObserverListener
 		}
 		
 	}
-
-    @Override
-    public void robotsReceived(JSONArray robots) 
-    {
-        _robots = robots;
-        repaint();
-    }
 }

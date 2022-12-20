@@ -10,7 +10,7 @@ import team.hobbyrobot.tdn.core.TDNValue;
 
 public class ArrayParser implements TDNTypeParser
 {
-    private static TDNTypeParser intParser = TDNParsers.INTEGER;
+    private static TDNTypeParser intParser = new IntegerParser();
 
 	@Override
 	public String typeKey()

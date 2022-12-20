@@ -30,7 +30,7 @@ public class MovementService implements Service, MoveListener, NavigationListene
 	private PoseProvider poseProvider;
 	private Navigator navigator;
 	
-	private RemoteMoveEventProvider moveEventProvider = new RemoteMoveEventProvider();
+	private RemoteMoveEventProvider moveEventProvider;
 
 	Hashtable<String, RequestInvoker> requests = null;
 
@@ -78,7 +78,7 @@ public class MovementService implements Service, MoveListener, NavigationListene
 		pilot.addMoveListener(this);
 		
 		poseProvider = hardware.getPoseProvider();
-		navigator = new Navigator(pilot, poseProvider, hardware.getChassis(), logger);
+		navigator = new Navigator(pilot, poseProvider, logger);
 		navigator.addNavigationListener(this);
 
 		initRequests();
@@ -115,7 +115,7 @@ public class MovementService implements Service, MoveListener, NavigationListene
 				});
 
 				/** ROTATE
-				 * Makes the robot rotate by a certain
+				 * Makes the robot rotate by a certain angle
 				 * request: rotate
 				 * params: [float] angle
 				 * response: -
@@ -135,6 +135,27 @@ public class MovementService implements Service, MoveListener, NavigationListene
 					}
 				});
 
+				/** ROTATE TO
+				 * Makes the robot rotate to a certain heading
+				 * request: rotateTo
+				 * params: [float] angle
+				 * response: -
+				 */
+				put("rotateTo", new RequestInvoker()
+				{
+					@Override
+					public TDNRoot invoke(TDNRoot params) throws RequestParamsException
+					{
+						TDNValue ang = params.get("angle");
+
+						if (ang == null)
+							throw new RequestParamsException("Angle doesn't exist in the current root", "angle");
+
+						navigator.rotateTo((double) (float) ang.as(), true);
+						return new TDNRoot();
+					}
+				});
+				
 				/** GET POSE
 				 * Sends back pose, at which the robot thinks it is
 				 * request: getPose
@@ -306,6 +327,7 @@ public class MovementService implements Service, MoveListener, NavigationListene
 					}
 				});
 				
+
 				/** GET IF PATH IS COMPLETED
 				 * Sends back information about whether the robot has completed following of a path
 				 * request: isPathCompleted
@@ -318,6 +340,21 @@ public class MovementService implements Service, MoveListener, NavigationListene
 					public TDNRoot invoke(TDNRoot params) throws RequestParamsException
 					{
 						return new TDNRoot().insertValue("pathCompleted", new TDNValue(navigator.pathCompleted(), TDNParsers.BOOLEAN));
+					}
+				});
+				
+				/** GET HOW MANY WAYPOINTS ARE REMAINING FROM THE CURRENT PATH
+				 * Sends back information about how many waypoints are remaining from the path the robot is currently following, returns 0 when path is completed
+				 * request: getRemainingPathCount
+				 * params: -
+				 * response: [integer] pathCompleted
+				 */
+				put("getRemainingPathCount", new RequestInvoker()
+				{
+					@Override
+					public TDNRoot invoke(TDNRoot params) throws RequestParamsException
+					{
+						return new TDNRoot().insertValue("remainingPathCount", new TDNValue(navigator.getPath().size(), TDNParsers.INTEGER));
 					}
 				});
 				
@@ -428,21 +465,44 @@ public class MovementService implements Service, MoveListener, NavigationListene
 				    }
 				});
 				
+				put("getExpectedHeading", new RequestInvoker()
+				{
+				    @Override
+				    public TDNRoot invoke(TDNRoot params) throws RequestGeneralException, RequestParamsException
+				    {
+				        if(!(pilot instanceof CompassPilot))
+				            throw new RequestGeneralException("Trying to set expected heading to pilot which doesn't have one");
+				        
+				        float heading = ((CompassPilot)pilot).getExpectedHeading();
+				        
+				        return new TDNRoot().insertValue("expectedHeading", new TDNValue(heading, TDNParsers.FLOAT));
+				    }
+				});
+				
                 put("registerMoveListener", new RequestInvoker()
                 {
                     @Override
                     public TDNRoot invoke(TDNRoot params) throws RequestGeneralException, RequestParamsException
                     {
                         TDNValue port = params.get("port");
+                        TDNValue id = params.get("id");
+
                         if(port == null)
                             throw new RequestParamsException("port isn't present in the current root", "port");
+                        if(moveEventProvider == null && id == null)
+                            throw new RequestParamsException("id isn't present in the current root", "id");
                         String ip=(((InetSocketAddress) client.getRemoteSocketAddress()).getAddress()).toString().replace("/","");
                         
                         try 
                         {
+                        	if(moveEventProvider == null)
+                        		moveEventProvider = new RemoteMoveEventProvider((int) id.as());
                             moveEventProvider.connectListener(ip, (int) port.as());
+                    		pilot.addMoveListener(moveEventProvider);
+                    		navigator.addNavigationListener(moveEventProvider);
+                            logger.log("Remote move event listener connected");
                         } 
-                        catch (UnknownHostException e) 
+                        catch (UnknownHostException e)
                         {
                             throw new RequestGeneralException("Exception occured when connecting remote move listener: " + Logger.getExceptionInfo(e));
                         } 
