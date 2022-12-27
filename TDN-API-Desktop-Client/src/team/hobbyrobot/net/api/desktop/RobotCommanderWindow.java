@@ -92,7 +92,7 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 
 		_robot.addRobotListener(this);
 
-		setTitle(_robot.api.getIP());
+		setTitle("Robot " + robot.getID() + " Commander");
 		setResizable(true);
 		getContentPane().setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
 
