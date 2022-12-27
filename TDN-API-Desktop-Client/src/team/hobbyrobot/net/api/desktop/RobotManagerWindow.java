@@ -28,14 +28,18 @@ import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import lejos.robotics.navigation.DestinationUnreachableException;
 import lejos.robotics.navigation.Waypoint;
 import lejos.robotics.pathfinding.Path;
+import team.hobbyrobot.collisiondetection.CollisionAvoider;
 import team.hobbyrobot.collisiondetection.LimmitedPath;
 import team.hobbyrobot.collisiondetection.PathPerformer;
+import team.hobbyrobot.collisiondetection.Vector;
 import team.hobbyrobot.graphics.PaintPanel;
 import team.hobbyrobot.graphics.Paintable;
 import team.hobbyrobot.logging.Logger;
@@ -45,8 +49,11 @@ import team.hobbyrobot.net.api.remoteevents.RemoteEventListenerServer;
 import team.hobbyrobot.python.Bridge;
 import team.hobbyrobot.robotmodeling.*;
 import team.hobbyrobot.robotobserver.RobotCorrector;
+import team.hobbyrobot.robotobserver.RobotModel;
 import team.hobbyrobot.robotobserver.RobotObserver;
+import team.hobbyrobot.tdn.base.TDNParsers;
 import team.hobbyrobot.tdn.core.TDNRoot;
+import team.hobbyrobot.tdn.core.TDNValue;
 
 public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 {
@@ -58,6 +65,8 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 
 	private boolean _recordingPath = false;
 	private Path _recordedPath = new Path();
+
+	private int planeWidth, planeHeight;
 
 	public static void main(String[] args) throws IOException, ParseException
 	{
@@ -119,6 +128,24 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		JPanel robotConnectionPanel = new JPanel();
 		robotConnectionPanel.setLayout(new BoxLayout(robotConnectionPanel, BoxLayout.PAGE_AXIS));
 
+		JButton connectDefaultBtn = new JButton("Connect default vehicles");
+		connectDefaultBtn.setAlignmentX(CENTER_ALIGNMENT);
+		connectDefaultBtn.addActionListener(e ->
+		{
+			JSONArray arr = (JSONArray) settings.get("vehicles");
+			for (Object o : arr)
+			{
+				JSONObject json = (JSONObject) o;
+				int id = (int) (long) json.get("id");
+				String ip = (String) json.get("ip");
+				int loggerPort = (int) (long) json.get("logger-port");
+				int apiPort = (int) (long) json.get("api-port");
+				int correctorPort = (int) (long) json.get("pose-corrector-port");
+				connectRobot(id, ip, loggerPort, apiPort, correctorPort);
+			}
+		});
+		robotConnectionPanel.add(connectDefaultBtn);
+
 		JPanel ipSelection = new JPanel();
 		ipSelection.setLayout(new FlowLayout());
 		JLabel ipLbl = new JLabel("IP:");
@@ -153,38 +180,14 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		JButton connectBtn = new JButton("Connect");
 		connectBtn.addActionListener(e ->
 		{
-			try
-			{
-				int id = Integer.parseInt(idTxt.getText());
-				String ip = ipTxt.getText();
-				int loggerPort = Integer.parseInt(loggerPortTxt.getText());
-				int apiPort = Integer.parseInt(apiPortTxt.getText());
-				int correctorPort = Integer.parseInt(correctorPortTxt.getText());
-
-				RemoteASCSRobot robot = new RemoteASCSRobot(id, ip, loggerPort, apiPort, correctorPort, _logger);
-
-				commanderWindows.add(new RobotCommanderWindow(robot));
-				robots.add(robot);
-
-				JOptionPane.showMessageDialog(commanderWindows.getLast(),
-					"Connected to " + ipTxt.getText() + ":" + apiPortTxt.getText(), "Success",
-					JOptionPane.INFORMATION_MESSAGE);
-			}
-			catch (NumberFormatException e1)
-			{
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-			catch (UnknownHostException e1)
-			{
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-			catch (IOException e1)
-			{
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
+			int id = Integer.parseInt(idTxt.getText());
+			String ip = ipTxt.getText();
+			int loggerPort = Integer.parseInt(loggerPortTxt.getText());
+			int apiPort = Integer.parseInt(apiPortTxt.getText());
+			int correctorPort = Integer.parseInt(correctorPortTxt.getText());
+			connectRobot(id, ip, loggerPort, apiPort, correctorPort);
+			JOptionPane.showMessageDialog(commanderWindows.getLast(), "Connected to " + ip + ":" + apiPort, "Success",
+				JOptionPane.INFORMATION_MESSAGE);
 		});
 		ipSelection.add(connectBtn);
 
@@ -196,8 +199,8 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 
 		JSONObject calibSettings = (JSONObject) observerSettings.get("calib");
 		JSONObject planeSettings = (JSONObject) calibSettings.get("rectangle");
-		long planeWidth = (long) planeSettings.get("width");
-		long planeHeight = (long) planeSettings.get("height");
+		planeWidth = (int) (long) planeSettings.get("width");
+		planeHeight = (int) (long) planeSettings.get("height");
 		int robotViewerWidth = 500;
 
 		PaintPanel robotViewer = new PaintPanel();
@@ -207,15 +210,16 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 			BorderFactory.createTitledBorder("Robot viewer"));
 		robotViewer.setBorder(robotViewerBorder);
 
-		robotViewer.addLayer(new PathPerformer.PathGraphics(robotViewer, (int) planeWidth));
-		
-		RemoteASCSRobot.RobotMovementGraphics movementGraphcis = new RemoteASCSRobot.RobotMovementGraphics(robotViewer, planeWidth);
+		robotViewer.addLayer(new PathPerformer.PathGraphics(robotViewer, planeWidth));
+
+		RemoteASCSRobot.RobotMovementGraphics movementGraphcis = new RemoteASCSRobot.RobotMovementGraphics(robotViewer,
+			planeWidth);
 		robotViewer.addLayer(movementGraphcis);
 
-		RobotViewerGraphics robotGraphics = new RobotViewerGraphics(observer, robotViewer, (int) planeWidth);
+		RobotViewerGraphics robotGraphics = new RobotViewerGraphics(observer, robotViewer, planeWidth);
 		robotViewer.addLayer(robotGraphics);
 
-		robotViewer.addLayer(new PathGeneratorGraphics(robotViewer, (int) planeWidth));
+		robotViewer.addLayer(new PathGeneratorGraphics(robotViewer, planeWidth));
 
 		getContentPane().add(robotViewer);
 
@@ -256,15 +260,62 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 			_recordedPath.clear();
 		});
 		getContentPane().add(recordBtn);
-		
+
 		JButton testBtn = new JButton("Start Test");
-		testBtn.addActionListener(e -> performTest());
+		testBtn.addActionListener(e ->
+		{
+			Thread t = new Thread(() ->
+			{
+				try
+				{
+					performTest();
+				}
+				catch (IOException e1)
+				{
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				catch (InterruptedException e1)
+				{
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			});
+			t.setPriority(Thread.MIN_PRIORITY);
+			t.start();
+		});
 		getContentPane().add(testBtn);
 		pack();
 
 		setLocationRelativeTo(null);
 
 		setVisible(true);
+	}
+
+	private void connectRobot(int id, String ip, int loggerPort, int apiPort, int correctorPort)
+	{
+		try
+		{
+			RemoteASCSRobot robot = new RemoteASCSRobot(id, ip, loggerPort, apiPort, correctorPort, _logger);
+
+			commanderWindows.add(new RobotCommanderWindow(robot));
+			robots.add(robot);
+		}
+		catch (NumberFormatException e1)
+		{
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		catch (UnknownHostException e1)
+		{
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		catch (IOException e1)
+		{
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
 	}
 
 	private void sendPath()
@@ -299,52 +350,57 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 				JOptionPane.ERROR_MESSAGE);
 		}
 	}
-	
-	public void performTest()
+
+	public void performTest() throws IOException, InterruptedException
 	{
-		Waypoint w5 = new Waypoint(1080, 100);
-		Waypoint w6 = new Waypoint(1280, 100);
-		Path p5 = new Path();
-		p5.add(w5);
-		Path p6 = new Path();
-		p6.add(w6);
+		CollisionAvoider avoider = new CollisionAvoider(new Dimension(planeWidth, planeHeight));
+
+		RemoteASCSRobot r6 = RemoteASCSRobot.getRobot(6);
+		RemoteASCSRobot r5 = RemoteASCSRobot.getRobot(5);
+
+		//r5.goTo(new Waypoint(1080, 570, 45));
+		//r6.goTo(new Waypoint(1280, 570, 90));
+
+		//while(r5.isMoving()) System.out.println(r5.isMoving());
+		
+		r5.api.rawRequest(RemoteASCSRobot.Requests.ROTATE.toTDN(new TDNValue(-90f, TDNParsers.FLOAT)));
+		//while(r5.isMoving() || r6.isMoving()) System.out.println(r5.isMoving()+" "+r6.isMoving());
+		Thread.sleep(1000);
+		//r5.api.rawRequest(RemoteASCSRobot.Requests.TRAVEL.toTDN(new TDNValue(100f, TDNParsers.FLOAT)));
+
+		//r6.api.rawRequest(RemoteASCSRobot.Requests.ROTATE.toTDN(new TDNValue(180f, TDNParsers.FLOAT)));
+		
+		Waypoint w5 = new Waypoint(1080 + 800, 570);
+		Waypoint w6 = new Waypoint(1280 + 801, 570);
+
+		RobotModel s5 = RemoteASCSRobot.globalCorrector.getRobotModel(5);
+		RobotModel s6 = RemoteASCSRobot.globalCorrector.getRobotModel(6);
+		
+		Vector A = new Vector(s6.x, s6.y);
+		Vector B = new Vector(w6.x, w6.y);
+		
+		Vector C = new Vector(s5.x, s5.y);
+		Vector D = new Vector(w5.x, w5.y);
+		
+		Vector E = C.plus(D).scale(.5);
+		
 		try
 		{
-			new PathPerformer(p5, 5, -1);
-			new PathPerformer(p6, 6, -1);
+			Path path = avoider.getPath(null, A, A, C, D, 0, 0f, RemoteASCSRobot.SIZE, 0);
+
+			//r6.goTo(w6);
+			r5.followPath(path.toArray(new Waypoint[path.size()]));
+			for(Waypoint w : path)
+			{
+				System.out.print("x=" + w.x + "; y=" + w.y + "; h=" + (w.isHeadingRequired() ? w.getHeading() : "-"));
+			}
+			System.out.println(path.size()+"===========================================");
 		}
-		catch (IOException e2)
+		catch (DestinationUnreachableException e)
 		{
-			// TODO Auto-generated catch block
-			e2.printStackTrace();
+			System.err.println("Destination unreachable");
 		}
 
-		
-		if(true)
-			return;
-		try
-		{
-			RemoteASCSRobot.getRobot(6).goTo(new Waypoint(0, 0));
-		}
-		catch (IOException e1)
-		{
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		
-		LimmitedPath p = new LimmitedPath((ArrayList<Waypoint>) _recordedPath);
-		p.travelLimit = 500;
-		p.limmitedStartWaypointIndex = 0;
-		try
-		{
-			new PathPerformer(p, 5, 6);
-		}
-		catch (IOException e)
-		{
-			e.printStackTrace();
-		}
-		_recordedPath.clear();
-		_recordingPath = false;
 	}
 
 	@Override
