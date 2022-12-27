@@ -12,6 +12,7 @@ import org.json.simple.JSONObject;
 import team.hobbyrobot.graphics.PaintPanel;
 import team.hobbyrobot.graphics.Paintable;
 import team.hobbyrobot.python.BridgeListener;
+import team.hobbyrobot.robotmodeling.RemoteASCSRobot;
 import team.hobbyrobot.robotobserver.RobotObserver;
 import team.hobbyrobot.robotobserver.RobotObserverListener;
 
@@ -64,6 +65,13 @@ public class RobotViewerGraphics implements Paintable, RobotObserverListener
 				g.fillOval((int) (x - 5), (int) (y - 5), 10, 10);
 				g.drawLine((int) x, (int) y, (int) (x + 20 * Math.cos(heading_rad)),
 					(int) (y + 20 * Math.sin(heading_rad)));
+				
+				g.setColor(Color.gray);
+				double robotSize = RemoteASCSRobot.SIZE * _scale;
+				g.drawLine((int)(x-robotSize), (int)(y-robotSize), (int)(x+robotSize), (int)(y-robotSize));
+				g.drawLine((int)(x+robotSize), (int)(y-robotSize), (int)(x+robotSize), (int)(y+robotSize));
+				g.drawLine((int)(x+robotSize), (int)(y+robotSize), (int)(x-robotSize), (int)(y+robotSize));
+				g.drawLine((int)(x-robotSize), (int)(y+robotSize), (int)(x-robotSize), (int)(y-robotSize));
 
 				FontMetrics metrics = g.getFontMetrics(robotFont);
 				g.setColor(Color.red);

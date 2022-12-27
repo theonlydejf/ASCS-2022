@@ -42,13 +42,15 @@ import team.hobbyrobot.tdn.core.TDNValue;
  */
 public class RemoteASCSRobot implements Closeable
 {
+	public static final float SIZE = 100;
+	
 	/** Event listener server, which listens to all remote events from connected robots */
 	public static RemoteEventListenerServer eventServer = null;
 
 	public static Hashtable<Integer, Move> robotMovements = new Hashtable<Integer, Move>();
-	
+
 	public static RobotCorrector globalCorrector;
-	
+
 	/** Table of all robots, which were connected with their corresponding IDs */
 	private static Hashtable<Integer, RemoteASCSRobot> _robots = new Hashtable<Integer, RemoteASCSRobot>();
 	/**
@@ -119,7 +121,7 @@ public class RemoteASCSRobot implements Closeable
 		_robotEventListener = new RobotEventListener();
 		eventServer.addListener(_robotEventListener);
 	}
-	
+
 	public static void initGlobalRobotCorrector(RobotObserver observer)
 	{
 		globalCorrector = new RobotCorrector(observer);
@@ -151,7 +153,7 @@ public class RemoteASCSRobot implements Closeable
 		public void eventReceived(String name, TDNRoot params, Socket client)
 		{
 			System.out.println("Event received: " + name + " " + params);
-			
+
 			// If id is not present in the params -> skip the event
 			TDNValue idTDN = params.get("id");
 			if (idTDN == null)
@@ -159,7 +161,7 @@ public class RemoteASCSRobot implements Closeable
 
 			int id = idTDN.as();
 			RemoteASCSRobot robot = RemoteASCSRobot.getRobot(id);
-			
+
 			switch (name)
 			{
 				case "moveStarted":
@@ -167,10 +169,10 @@ public class RemoteASCSRobot implements Closeable
 					robotMovements.put(id, simpleMove);
 					for (RemoteSimpleMoveEventListener l : allSimpleMovesListeners)
 						l.moveStarted(id, simpleMove);
-					if(robot != null)
+					if (robot != null)
 						for (RemoteSimpleMoveEventListener l : robot._listeners)
 							l.moveStarted(id, simpleMove);
-					
+
 					robot._isMoving = true;
 				break;
 
@@ -179,42 +181,42 @@ public class RemoteASCSRobot implements Closeable
 					robotMovements.remove(id);
 					for (RemoteSimpleMoveEventListener l : allSimpleMovesListeners)
 						l.moveStopped(id, simpleMove);
-					if(robot != null)
+					if (robot != null)
 						for (RemoteSimpleMoveEventListener l : robot._listeners)
 							l.moveStopped(id, simpleMove);
-					
+
 					robot._isMoving = false;
-					break;
-					
+				break;
+
 				case "atWaypoint":
 					Waypoint waypoint = getWaypointFromTDN(params.get("waypoint").as());
 					Pose pose = getPoseFromTDN(params.get("pose").as());
 					int sequence = params.get("sequence").as();
 					for (RemoteNavigationEventListener l : allNavigationListeners)
 						l.atWaypoint(id, waypoint, pose, sequence);
-					if(robot != null)
+					if (robot != null)
 						for (RemoteNavigationEventListener l : robot._listeners)
 							l.atWaypoint(id, waypoint, pose, sequence);
 				break;
-				
+
 				case "pathComplete":
 					waypoint = getWaypointFromTDN(params.get("waypoint").as());
 					pose = getPoseFromTDN(params.get("pose").as());
 					sequence = params.get("sequence").as();
 					for (RemoteNavigationEventListener l : allNavigationListeners)
 						l.pathComplete(id, waypoint, pose, sequence);
-					if(robot != null)
+					if (robot != null)
 						for (RemoteNavigationEventListener l : robot._listeners)
 							l.pathComplete(id, waypoint, pose, sequence);
 				break;
-				
+
 				case "pathInterrupted":
 					waypoint = getWaypointFromTDN(params.get("waypoint").as());
 					pose = getPoseFromTDN(params.get("pose").as());
 					sequence = params.get("sequence").as();
 					for (RemoteNavigationEventListener l : allNavigationListeners)
 						l.pathInterrupted(id, waypoint, pose, sequence);
-					if(robot != null)
+					if (robot != null)
 						for (RemoteNavigationEventListener l : robot._listeners)
 							l.pathInterrupted(id, waypoint, pose, sequence);
 				break;
@@ -228,20 +230,20 @@ public class RemoteASCSRobot implements Closeable
 		private TDNValue[] extractTDNValues(TDNRoot root, String... keys)
 		{
 			TDNValue[] out = new TDNValue[keys.length];
-			for(int i = 0; i < keys.length; i++)
+			for (int i = 0; i < keys.length; i++)
 			{
 				out[i] = root.get(keys[i]);
 			}
-			
+
 			for (TDNValue val : out)
 			{
 				if (val == null)
 					return null;
 			}
-			
+
 			return out;
 		}
-		
+
 		private Move getMoveFromTDN(TDNRoot root)
 		{
 			// @formatter:off
@@ -265,7 +267,7 @@ public class RemoteASCSRobot implements Closeable
 
 			return new Move(moveType, distance, angle, travelSpeed, rotateSpeed, false);
 		}
-		
+
 		private Pose getPoseFromTDN(TDNRoot root)
 		{
 			// @formatter:off
@@ -285,7 +287,7 @@ public class RemoteASCSRobot implements Closeable
 
 			return new Pose(x, y, heading);
 		}
-		
+
 		private Waypoint getWaypointFromTDN(TDNRoot root)
 		{
 			// @formatter:off
@@ -299,23 +301,23 @@ public class RemoteASCSRobot implements Closeable
 			if (vals == null)
 				return null;
 
-			float x = vals[0].as();
-			float y = vals[1].as();
-			
-			if((boolean) vals[2].value)
+			Float x = vals[0].as();
+			Float y = vals[1].as();
+
+			if ((boolean) vals[2].value)
 			{
 				TDNValue headingTDN = root.get("heading");
-				if(headingTDN == null)
+				if (headingTDN == null)
 					return null;
-				
-				return new Waypoint(x, y, headingTDN.as());
+
+				return new Waypoint(x.doubleValue(), y.doubleValue(), ((Float)headingTDN.as()).doubleValue());
 			}
-			
+
 			return new Waypoint(x, y);
 		}
-		
+
 	}
-	
+
 	public static class Requests
 	{
 		public static final Request TRAVEL;
@@ -338,7 +340,7 @@ public class RemoteASCSRobot implements Closeable
 		public static final Request SET_EXPECTED_HEADING;
 		public static final Request GET_EXPECTED_HEADING;
 		public static final Request REGISTER_MOVE_LISTENER;
-		
+
 		static
 		{
 			TRAVEL = moveRequests.get("travel");
@@ -366,7 +368,7 @@ public class RemoteASCSRobot implements Closeable
 
 	public static class RobotMovementGraphics implements Paintable, RemoteSimpleMoveEventListener
 	{
-		Hashtable<Integer, Tuple<RobotModel, Float>> _robotModelsAtMoveStart = new Hashtable<>();
+		Hashtable<Integer, RobotModel> _robotModelsAtMoveStart = new Hashtable<>();
 
 		public static final double ROBOT_SIZE = 100;
 
@@ -392,13 +394,14 @@ public class RemoteASCSRobot implements Closeable
 			{
 				int id = entry.getKey();
 				Move move = entry.getValue();
-				
-				Tuple<RobotModel, Float> model;
-				synchronized(_robotModelsAtMoveStart)
+
+				RobotModel model;
+				synchronized (_robotModelsAtMoveStart)
 				{
 					model = _robotModelsAtMoveStart.get(id);
 				}
-				
+
+				model.heading = globalCorrector.getRobotModel(id).heading;
 				switch (move.getMoveType())
 				{
 					case ARC:
@@ -420,26 +423,26 @@ public class RemoteASCSRobot implements Closeable
 			}
 		}
 
-		private void drawRotate(Graphics2D g, Tuple<RobotModel, Float> model, double ang)
+		private void drawRotate(Graphics2D g, RobotModel model, double ang)
 		{
 			if (model == null)
 				return;
 
-			double x = model.item1.x - ROBOT_SIZE / 2;
-			double y = model.item1.y - ROBOT_SIZE / 2;
+			double x = model.x - ROBOT_SIZE / 2;
+			double y = model.y - ROBOT_SIZE / 2;
 
 			g.setColor(Color.blue);
 			g.fillArc((int) (x * _scale), (int) (y * _scale), (int) (ROBOT_SIZE * _scale), (int) (ROBOT_SIZE * _scale),
-				(int) -model.item1.heading, (int) -ang);
+				(int) -model.heading, (int) -ang);
 		}
 
-		private void drawStop(Graphics2D g, Tuple<RobotModel, Float> model)
+		private void drawStop(Graphics2D g, RobotModel model)
 		{
 			if (model == null)
 				return;
 
-			double x = model.item1.x - ROBOT_SIZE / 2;
-			double y = model.item1.y - ROBOT_SIZE / 2;
+			double x = model.x - ROBOT_SIZE / 2;
+			double y = model.y - ROBOT_SIZE / 2;
 
 			g.setColor(Color.red);
 			g.fillRect((int) (x * _scale), (int) (y * _scale), (int) (ROBOT_SIZE * _scale),
@@ -447,18 +450,18 @@ public class RemoteASCSRobot implements Closeable
 
 		}
 
-		private void drawTravel(Graphics2D g, Tuple<RobotModel, Float> model, double dist)
+		private void drawTravel(Graphics2D g, RobotModel model, double dist)
 		{
 			if (model == null)
 				return;
 
-			double heading_rad = model.item2 / 180 * Math.PI;
+			double heading_rad = model.heading / 180 * Math.PI;
 
-			double targetX = model.item1.x + Math.cos(heading_rad) * dist;
-			double targetY = model.item1.y + Math.sin(heading_rad) * dist;
+			double targetX = model.x + Math.cos(heading_rad) * dist;
+			double targetY = model.y + Math.sin(heading_rad) * dist;
 
 			g.setColor(Color.blue);
-			g.drawLine((int) (model.item1.x * _scale), (int) (model.item1.y * _scale), (int) (targetX * _scale),
+			g.drawLine((int) (model.x * _scale), (int) (model.y * _scale), (int) (targetX * _scale),
 				(int) (targetY * _scale));
 		}
 
@@ -470,28 +473,28 @@ public class RemoteASCSRobot implements Closeable
 				@Override
 				public void run()
 				{
-					synchronized (_robotModelsAtMoveStart)
-					{
-						TDNValue tdn = null;
+
+						/*TDNValue tdn = null;
+						Response response = null;
 						try
 						{
-							@SuppressWarnings("resource")
-							TDNRoot response = getRobot(id).api.request("MovementService", "getExpectedHeading",
-								new TDNRoot());
-							TDNRoot data = response.get("data").as();
-							tdn = data.get("expectedHeading");
+							response = new Response(getRobot(id).api.rawRequest(RemoteASCSRobot.Requests.GET_EXPECTED_HEADING.toTDN()));
+							if(!response.wasRequestSuccessful())
+								throw new RuntimeException("GET_EXPECTED_HEADING request wasn't succesfful!");
+							
+							tdn = response.getData().get("expectedHeading");
 						}
 						catch (IOException e)
 						{
 						}
-						finally
-						{
-							if (tdn == null)
-								throw new RuntimeException("Excpected heading wasn't received");
-						}
-
-						_robotModelsAtMoveStart.put(id,
-							new Tuple<RobotModel, Float>(globalCorrector.getRobotModel(id), tdn.as()));
+						
+						if (tdn == null)
+							throw new RuntimeException("Excpected heading wasn't found in the following root: " + 
+						response == null ? "NONE" : response.getData().toString());*/
+					
+					synchronized (_robotModelsAtMoveStart)
+					{
+						_robotModelsAtMoveStart.put(id, globalCorrector.getRobotModel(id));
 						_paintPanel.repaint();
 					}
 				}
@@ -518,7 +521,7 @@ public class RemoteASCSRobot implements Closeable
 	{
 		_robotEventListener.allSimpleMovesListeners.remove(l);
 	}
-	
+
 	public static void addAllNavigationEventsListener(RemoteNavigationEventListener l)
 	{
 		_robotEventListener.allNavigationListeners.add(l);
@@ -528,7 +531,7 @@ public class RemoteASCSRobot implements Closeable
 	{
 		_robotEventListener.allNavigationListeners.remove(l);
 	}
-	
+
 	public RemoteASCSRobot(int id, String ip, int loggerPort, int apiPort, int correctorPort, Logger localLogger)
 		throws UnknownHostException, IOException
 	{
@@ -563,9 +566,9 @@ public class RemoteASCSRobot implements Closeable
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			
+
 			globalCorrector.startCorrectingRobot(corrector, getID());
-			
+
 			//
 			// Start listening for move events from the robot
 
@@ -587,7 +590,8 @@ public class RemoteASCSRobot implements Closeable
 			}
 
 			// If connecting to the remote event provider was unsuccessful -> throw an exception
-			throw new IOException("Connecting to robots event provider at " + ip + " failed: " + response.getErrorDetails());
+			throw new IOException(
+				"Connecting to robots event provider at " + ip + " failed: " + response.getErrorDetails());
 		}
 
 	}
@@ -616,37 +620,36 @@ public class RemoteASCSRobot implements Closeable
 	{
 		return _lastRmEvent;
 	}
-	
+
 	public Response goTo(Waypoint waypoint) throws IOException
 	{
 		TDNRoot rqst;
-		if(waypoint.isHeadingRequired())
-			rqst = Requests.GO_TO.toTDN(
-				new TDNValue(waypoint.x, TDNParsers.FLOAT),
+		if (waypoint.isHeadingRequired())
+			rqst = Requests.GO_TO.toTDN(new TDNValue(waypoint.x, TDNParsers.FLOAT),
 				new TDNValue(waypoint.y, TDNParsers.FLOAT),
-				new TDNValue((float)waypoint.getHeading(), TDNParsers.FLOAT));
+				new TDNValue((float) waypoint.getHeading(), TDNParsers.FLOAT));
 		else
-			rqst = Requests.GO_TO.toTDN(
-				new TDNValue(waypoint.x, TDNParsers.FLOAT),
+			rqst = Requests.GO_TO.toTDN(new TDNValue(waypoint.x, TDNParsers.FLOAT),
 				new TDNValue(waypoint.y, TDNParsers.FLOAT));
-		
+
 		return new Response(api.rawRequest(rqst));
 	}
-	
+
 	public Response followPath(Waypoint... waypoints) throws IOException
 	{
 		TDNRoot[] pathRoots = new TDNRoot[waypoints.length];
-		for(int i = 0; i < waypoints.length; i++)
+		for (int i = 0; i < waypoints.length; i++)
 		{
 			Waypoint waypoint = waypoints[i];
 			pathRoots[i] = new TDNRoot()
 				.insertValue(Requests.GO_TO.params[0], new TDNValue(waypoint.x, TDNParsers.FLOAT))
 				.insertValue(Requests.GO_TO.params[1], new TDNValue(waypoint.y, TDNParsers.FLOAT));
-			if(waypoint.isHeadingRequired())
-				pathRoots[i].insertValue(Requests.GO_TO.params[0], new TDNValue((float)waypoint.getHeading(), TDNParsers.FLOAT));
+			if (waypoint.isHeadingRequired())
+				pathRoots[i].insertValue(Requests.GO_TO.params[0],
+					new TDNValue((float) waypoint.getHeading(), TDNParsers.FLOAT));
 		}
 		TDNArray pathArr = new TDNArray(pathRoots, TDNParsers.ROOT);
-		
+
 		return new Response(api.rawRequest(Requests.FOLLOW_PATH.toTDN(pathArr.asTDNValue())));
 	}
 
