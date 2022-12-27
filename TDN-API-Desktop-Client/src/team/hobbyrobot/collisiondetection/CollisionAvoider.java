@@ -37,9 +37,12 @@ public class CollisionAvoider
 		PathCollider f1 = new PathCollider(B, B, robotSize * 1f);
 		PathCollider f2 = new PathCollider(D, D, robotSize * 1f);
 
-		g.setColor(Color.blue);
-		f1.draw(g);
-		f2.draw(g);
+		if (g != null)
+		{
+			g.setColor(Color.blue);
+			f1.draw(g);
+			f2.draw(g);
+		}
 
 		// If destinationts overlap -> Invalid destination
 		if (f1.intersects(f2))
@@ -51,8 +54,11 @@ public class CollisionAvoider
 
 		//g.setColor(Color.red);
 		//a.draw(g);
-		g.setColor(Color.green);
-		c.draw(g);
+		if (g != null)
+		{
+			g.setColor(Color.green);
+			c.draw(g);
+		}
 
 		// Calculate the point, at which the robots could collide
 		Vector E = getCollisionPoint(A, B, C, deltaA);
@@ -82,10 +88,13 @@ public class CollisionAvoider
 				// @formatter:on
 
 		// Draw the no-go zone
-		g.setColor(new Color(200, 200, 255));
-		for (Line l : obstructions)
+		if (g != null)
 		{
-			g.drawLine((int) l.x1, (int) l.y1, (int) l.x2, (int) l.y2);
+			g.setColor(new Color(200, 200, 255));
+			for (Line l : obstructions)
+			{
+				g.drawLine((int) l.x1, (int) l.y1, (int) l.x2, (int) l.y2);
+			}
 		}
 		// Update path finder with the current no-go zone
 		_pathFinder.setMap(obstructions);
@@ -107,12 +116,17 @@ public class CollisionAvoider
 		//		the no-go zone without colliding with the first robot
 		if (E == null)
 			return path;
+		if(A.equals(B))
+			return path;
 
 		// Calculate a collider for an area, where there is possibility of the two
 		// robots colliding
 		PathCollider b = new PathCollider(E, B.minus(B.minus(A).direction().scale(robotSize)), robotSize);
-		g.setColor(Color.orange);
-		b.draw(g);
+		if (g != null)
+		{
+			g.setColor(Color.orange);
+			b.draw(g);
+		}
 
 		// If the first robot doesn't go through the collision area, return the 
 		// found path without limmiting its movement
@@ -159,7 +173,10 @@ public class CollisionAvoider
 		// Index of the waypoint, from which the movement should be limmited
 		int collisionStartIdx = -1;
 
-		g.setColor(Color.magenta);
+		if (g != null)
+		{
+			g.setColor(Color.magenta);
+		}
 		for (int i = 0; i < path.size() - 1; i++)
 		{
 			Waypoint current = path.get(i);
@@ -195,8 +212,11 @@ public class CollisionAvoider
 						continue;
 
 					collisionPoints.add(intersection);
-					g.drawLine((int) collider.x1, (int) collider.y1, (int) collider.x2, (int) collider.y2);
-					drawCross(g, (int) intersection.x, (int) intersection.y);
+					if (g != null)
+					{
+						g.drawLine((int) collider.x1, (int) collider.y1, (int) collider.x2, (int) collider.y2);
+						drawCross(g, (int) intersection.x, (int) intersection.y);
+					}
 				}
 			}
 
