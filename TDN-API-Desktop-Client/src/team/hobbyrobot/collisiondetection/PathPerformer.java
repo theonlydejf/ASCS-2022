@@ -85,7 +85,7 @@ public class PathPerformer implements RemoteASCSRobotListener
 	private double _travelLimit = Double.POSITIVE_INFINITY;
 	private int _limmitedIndex = 0;
 
-	private int _lastWaypointIndex = 0;
+	private int _nextWaypointIndex = 0;
 	private boolean _moveLimmited;
 	private boolean _traveling = false;
 	private RemoteASCSRobot _dangerousRobot;
@@ -108,7 +108,7 @@ public class PathPerformer implements RemoteASCSRobotListener
 			_travelLimit = limmitedPath.travelLimit;
 		}
 
-		_robot.followPath(_path);
+		_robot.goTo(_path[_nextWaypointIndex]);
 
 		synchronized (currentPaths)
 		{
@@ -122,7 +122,7 @@ public class PathPerformer implements RemoteASCSRobotListener
 		if (!move.getMoveType().equals(Move.MoveType.TRAVEL))
 			return;
 		_traveling = true;
-		if (_lastWaypointIndex != _limmitedIndex)
+		if (_nextWaypointIndex - 1 != _limmitedIndex)
 			return;
 		if (Double.isInfinite(_travelLimit))
 			return;
@@ -192,14 +192,32 @@ public class PathPerformer implements RemoteASCSRobotListener
 	@Override
 	public void atWaypoint(int robotID, Waypoint waypoint, Pose pose, int sequence)
 	{
-		_lastWaypointIndex = sequence;
+
 	}
 
+	//TODO Zopakuje posledni dva waypointy?? WTF??
 	@Override
 	public void pathComplete(int robotID, Waypoint waypoint, Pose pose, int sequence)
 	{
-		System.out.println("Path complete.. closing");
-		close();
+		System.err.println(_nextWaypointIndex + " / " + _path.length);
+		_nextWaypointIndex++;
+		if(_nextWaypointIndex >= _path.length)
+		{
+			System.out.println("Path complete.. closing");
+			close();
+			return;
+		}
+		
+		try
+		{
+			_robot.goTo(_path[_nextWaypointIndex]);
+		}
+		catch (IOException e)
+		{
+			System.err.println("Couldnt start move to waypoint " + _nextWaypointIndex + ". Closing...");
+			e.printStackTrace();
+			close();
+		}
 	}
 
 	@Override
@@ -209,7 +227,6 @@ public class PathPerformer implements RemoteASCSRobotListener
 		close();
 	}
 
-	// TODO obcas nefunguje??
 	public void close()
 	{
 		System.out.println("Closing path on robot " + _robot.getID());
