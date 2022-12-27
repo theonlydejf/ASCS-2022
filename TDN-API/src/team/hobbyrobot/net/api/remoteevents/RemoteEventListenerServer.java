@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 import team.hobbyrobot.logging.Logger;
@@ -29,66 +30,129 @@ public class RemoteEventListenerServer extends Thread implements ClientRegistere
 		setDaemon(true);
 	}
 
+	private void receiveEventFromClient(RegisteredEndpoint client)
+	{
+		try
+		{
+			TDNRoot event = TDNRoot.readFromStream(client.reader);
+			String eventName = event.get(RemoteEventProvider.EVENT_KEY).as();
+			TDNRoot params = event.get(RemoteEventProvider.PARAMS_KEY).as();
+			synchronized (_listeners)
+			{
+				for (RemoteEventListener l : _listeners)
+					l.eventReceived(eventName, params, client.socket);
+			}
+		}
+		catch (IOException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 	@Override
 	public void run()
 	{
-		RegisteredEndpoint client = null;
+		ArrayList<Thread> readThreads = new ArrayList<Thread>();
 		while (!interrupted())
 		{
-			client = null;
-			while (client == null)
+			synchronized (_registerer.clients)
 			{
-				if (interrupted())
-					return;
-				synchronized (_registerer.clients)
+				for (int i = 0; i < _registerer.countRegisteredClients(); i++)
 				{
-					for (int i = 0; i < _registerer.countRegisteredClients(); i++)
+					final int j = i;
+					if(readThreads.size() > i)
 					{
-						RegisteredEndpoint ept = _registerer.clients.get(i);
-						try
+						if(readThreads.get(i) != null && readThreads.get(i).isAlive())
+							continue;
+						
+						Thread t = new Thread()
 						{
-							if (ept.reader.ready())
+							@Override
+							public void run()
 							{
-								client = ept;
-								break;
+								receiveEventFromClient(_registerer.clients.get(j));
 							}
-						}
-						catch (IOException e)
-						{
-							try
-							{
-								ept.close();
-								_registerer.clients.remove(i);
-								break;
-							}
-							catch (IOException e1)
-							{
-								e.printStackTrace();
-							}
-						}
+						};
+						
+						t.start();
+						readThreads.set(i, t);
+						continue;
 					}
+					Thread t = new Thread()
+					{
+						@Override
+						public void run()
+						{
+							receiveEventFromClient(_registerer.clients.get(j));
+						}
+					};
+					t.start();
+					readThreads.add(t);
 				}
-			}
 
-			try
-			{
-				while(client.inputStream.available() > 0)
-				{
-					TDNRoot event = TDNRoot.readFromStream(client.reader);
-					String eventName = event.get(RemoteEventProvider.EVENT_KEY).as();
-					TDNRoot params = event.get(RemoteEventProvider.PARAMS_KEY).as();
-					synchronized (_listeners)
-					{
-						for (RemoteEventListener l : _listeners)
-							l.eventReceived(eventName, params, client.socket);
-					}
-				}
-			}
-			catch (IOException e)
-			{
-				e.printStackTrace();
 			}
 		}
+		// formater:off
+		/*
+		 * RegisteredEndpoint client = null;
+		 * while (!interrupted())
+		 * {
+		 * client = null;
+		 * while (client == null)
+		 * {
+		 * if (interrupted())
+		 * return;
+		 * synchronized (_registerer.clients)
+		 * {
+		 * for (int i = 0; i < _registerer.countRegisteredClients(); i++)
+		 * {
+		 * RegisteredEndpoint ept = _registerer.clients.get(i);
+		 * try
+		 * {
+		 * if (ept.reader.ready())
+		 * {
+		 * client = ept;
+		 * break;
+		 * }
+		 * }
+		 * catch (IOException e)
+		 * {
+		 * try
+		 * {
+		 * ept.close();
+		 * _registerer.clients.remove(i);
+		 * break;
+		 * }
+		 * catch (IOException e1)
+		 * {
+		 * e.printStackTrace();
+		 * }
+		 * }
+		 * }
+		 * }
+		 * }
+		 * try
+		 * {
+		 * while(client.inputStream.available() > 0)
+		 * {
+		 * TDNRoot event = TDNRoot.readFromStream(client.reader);
+		 * String eventName = event.get(RemoteEventProvider.EVENT_KEY).as();
+		 * TDNRoot params = event.get(RemoteEventProvider.PARAMS_KEY).as();
+		 * synchronized (_listeners)
+		 * {
+		 * for (RemoteEventListener l : _listeners)
+		 * l.eventReceived(eventName, params, client.socket);
+		 * }
+		 * }
+		 * }
+		 * catch (IOException e)
+		 * {
+		 * e.printStackTrace();
+		 * }
+		 * }
+		 */
+		// formater:on
 	}
 
 	public void addListener(RemoteEventListener l)

@@ -45,7 +45,7 @@ public class TDNRootParser implements TDNTypeParser
     private Entry<String, TDNValue> readKeyValuePair(TDNBufferedReader reader) throws IOException
     {
         int firstChar = reader.read();
-        if (firstChar < 0 || reader.lastReadControlCharacter() == TDNControlCharacter.VALUE_SAPERATOR)
+        if (reader.lastReadControlCharacter() == TDNControlCharacter.VALUE_SAPERATOR)
             return null;
 
         reader.queueCharacter((char)firstChar);
