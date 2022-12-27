@@ -31,16 +31,16 @@
     [
         {
             "id": 5,
-            "ip": "192.168.1.101",
-            "logger-port": 1111,
+            "ip": "localhost",
+            "logger-port": 2111,
             "api-port": 2222,
-            "pose-corrector-port": 3333
+            "pose-corrector-port": 2333
         },
         {
             "id": 6,
-            "ip": "192.168.1.100",
-            "logger-port": 1111,
-            "api-port": 2222,
+            "ip": "localhost",
+            "logger-port": 3111,
+            "api-port": 3222,
             "pose-corrector-port": 3333
         }
     ]
