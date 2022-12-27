@@ -87,6 +87,7 @@ public class PathPerformer implements RemoteASCSRobotListener
 
 	private int _lastWaypointIndex = 0;
 	private boolean _moveLimmited;
+	private boolean _traveling = false;
 	private RemoteASCSRobot _dangerousRobot;
 	private RobotModel _robotPoseAtMoveStart;
 
@@ -120,6 +121,7 @@ public class PathPerformer implements RemoteASCSRobotListener
 	{
 		if (!move.getMoveType().equals(Move.MoveType.TRAVEL))
 			return;
+		_traveling = true;
 		if (_lastWaypointIndex != _limmitedIndex)
 			return;
 		if (Double.isInfinite(_travelLimit))
@@ -148,6 +150,11 @@ public class PathPerformer implements RemoteASCSRobotListener
 	@Override
 	public void moveStopped(int robotID, Move move)
 	{
+		if(move.getMoveType().equals(Move.MoveType.TRAVEL))
+		{
+			_traveling = false;
+		}
+		
 		if (!_moveLimmited)
 			return;
 		Thread waitThread = new Thread()
