@@ -353,6 +353,9 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 						nav.singleStep(false);
 						nav.followPath();
 						return new TDNRoot();
+					case "stop":
+						nav.stop();
+						return new TDNRoot();
 					case "isPathCompleted":
 						return new TDNRoot().insertValue("pathCompleted", new TDNValue(nav.pathCompleted(), TDNParsers.BOOLEAN));
 					case "setNavTravelLimit":
