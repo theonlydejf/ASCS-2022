@@ -31,14 +31,19 @@ def main():
 
     rect = CalibrationRectangle((10, 10), (1010, 10), (1010, 510), (10, 510), 2340, 1120)
 
-    robot_detector = RobotDetector(args.camera_idx, \
+    robot_detector = RobotDetector(
+        args.camera_idx, \
         graphics=args.graphics, \
         rscs_path=settings["detector-rscs-path"], \
         tag_family=tag_stg["family"], \
         tag_size=tag_stg["size"], \
         plane_size=(rect_stg["width"], rect_stg["height"]), \
         tag_margin=rect_stg["tag-margin"], \
-        calib_rect_tags=(rect_stg["top-left-tag"], rect_stg["top-right-tag"], rect_stg["bottom-left-tag"], rect_stg["bottom-right-tag"]) \
+        calib_rect_tags=(rect_stg["top-left-tag"], \
+            rect_stg["top-right-tag"], \
+            rect_stg["bottom-left-tag"], \
+            rect_stg["bottom-right-tag"]), \
+        id_blacklist=settings["id-blacklist"]
     )
 
     robot_detector.check_camera_wait()

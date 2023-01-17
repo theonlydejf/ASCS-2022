@@ -10,6 +10,7 @@ public class PathCollider
 	public Vector delta;
 
 	public Line[] lines;
+	public Line[] linesCollider;
 
 	public PathCollider(Vector A, Vector B, double height)
 	{
@@ -58,12 +59,14 @@ public class PathCollider
 
 		lines = new Line[] { lineFromVectors(bottomRight, bottomLeft), lineFromVectors(bottomLeft, topLeft),
 				lineFromVectors(topLeft, topRight), lineFromVectors(topRight, bottomRight) };
+		linesCollider = new Line[] { lineFromVectors(bottomRight, bottomLeft), lineFromVectors(bottomLeft, topLeft),
+				lineFromVectors(topLeft, topRight), lineFromVectors(topRight, bottomRight),
+				lineFromVectors(topRight, bottomLeft), lineFromVectors(bottomRight, topLeft) };
 	}
-	
+
 	private static Line lineFromVectors(Vector a, Vector b)
 	{
-		return new Line((float) a.cartesian(0), (float) a.cartesian(1), (float) b.cartesian(0),
-			(float) b.cartesian(1));
+		return new Line((float) a.cartesian(0), (float) a.cartesian(1), (float) b.cartesian(0), (float) b.cartesian(1));
 	}
 
 }

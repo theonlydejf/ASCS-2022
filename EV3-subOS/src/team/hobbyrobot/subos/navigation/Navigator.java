@@ -464,7 +464,7 @@ public class Navigator implements WaypointListener, MoveListener
 						while(ang > 180)
 						    ang -= 360;
 						
-						_pilot.rotate(ang, false);
+						_pilot.rotate(ang, true);
 						
 						waitMoveFinished();
 						checkLimit();

@@ -60,7 +60,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 		_angularAccel = 100;
 
 		_linearMinSpeed = 30;
-		_angularMinSpeed = 30;
+		_angularMinSpeed = 35;
 
 		_expectedHeading = hardware.getAngle();
 	}

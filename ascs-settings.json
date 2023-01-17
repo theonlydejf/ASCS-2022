@@ -25,7 +25,14 @@
                 "bottom-left-tag": 3,
                 "bottom-right-tag": 4
             }
-        }
+        },
+        "id-blacklist":
+        [
+            1,
+            2,
+            3,
+            4
+        ]
     },
     "vehicles":
     [

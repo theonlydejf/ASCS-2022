@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 
 import lejos.robotics.localization.PoseProvider;
 import lejos.robotics.navigation.Move;
@@ -48,6 +49,7 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 	public Pose pose = new Pose(0, 0, 0);
 
 	private Pose _poseAtMoveStart = null;
+	private float _travelled = 0;
 	private float _moveTravelTarget = 0;
 	private float _moveRotateTarget = 0;
 	private double _moveTravelLimit = Double.POSITIVE_INFINITY;
@@ -66,8 +68,14 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 	private boolean _moving;
 	
 	private LinkedList<MoveListener> _listeners = new LinkedList<>(); 
-
-	public SimRobot(int loggerPort, int apiPort, int correctorPort) throws IOException
+	private Random rnd = new Random();
+	private int angleSlippageChance = 20;
+	private int travelSlippageChance = 25;
+	private float angleSlippageAmount = 10;
+	private float travelSlippageAmount = 30;
+	private float travelKp = 1.5f;
+	
+	public SimRobot(int loggerPort, int apiPort, int correctorPort, Pose p) throws IOException
 	{
 		id = -1;
 		System.out.println("Starting logger...");
@@ -78,6 +86,9 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 		registerer.startRegisteringClients();
 		
 		eventProvider = new RemoteMoveEventProvider(id);
+		
+		pose = p;
+		_expectedHeading = p.heading;
 		
 		nav = new Navigator(SimRobot.this, SimRobot.this, logger);
 		SimRobot.this.addMoveListener(eventProvider);
@@ -118,37 +129,84 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 			{
 				// Move robot
 				double lastHeadingRad = Math.toRadians(pose.heading);
-				float movedX = (float)(Math.cos(lastHeadingRad) * _currLinearV) * deltaTime;
-				float movedY = (float)(Math.sin(lastHeadingRad) * _currLinearV) * deltaTime;
+				float movedForward = _currLinearV * deltaTime;
+				_travelled += movedForward;
 				float movedHeading = _currAngularV * deltaTime;
+				if(_currAngularV != 0 || _currLinearV != 0)
+				{
+					// ang slip
+					if(rnd.nextInt(angleSlippageChance) == angleSlippageChance / 2)
+					{
+						float amount = (float)rnd.nextFloat() * angleSlippageAmount;
+						if(movedForward != 0 && movedHeading == 0)
+						{
+							amount *= rnd.nextFloat() - .5f;
+							movedHeading = amount;
+							System.out.println("ang slip when travelling");
+						}
+						else if(Math.abs(movedHeading) > amount)
+							movedHeading -= Math.signum(movedHeading) * amount;
+						else
+							movedHeading = 0;
+						
+						System.out.println("ang slip: " + amount);
+					}
+					// travel slip
+					if(rnd.nextInt(travelSlippageChance) == travelSlippageChance / 2)
+					{
+						float amount = (float)rnd.nextFloat() * travelSlippageAmount;
+						if(movedHeading != 0 && movedForward == 0)
+						{
+							amount *= rnd.nextFloat() - .5f;
+							movedForward = amount;
+							System.out.println("fwd slip when rotating");
+						}
+						else if(Math.abs(movedForward) > amount)
+							movedForward -= Math.signum(movedForward) * amount;
+						else
+							movedForward = 0;
+						
+						System.out.println("fwd slip: " + amount);
+					}
+				}
+				
+				if(_currAngularV == 0)
+				{
+					if(_currLinearV != 0)
+					{
+						float error = _expectedHeading - pose.heading;
+						movedHeading += error * travelKp * deltaTime;
+					}
+				}
+				
+				float movedX = (float)(Math.cos(lastHeadingRad) * movedForward);
+				float movedY = (float)(Math.sin(lastHeadingRad) * movedForward);
+				
 				//System.out.println("movedX=" + movedX + "; movedY=" + movedY + "movedH=" + movedHeading);
 				
 				pose.x += movedX;
 				pose.y += movedY;
 				pose.heading += movedHeading;
 
+				//System.out.println(id + ": dx=" + movedX + "; dy=" + movedY + "; dHeading=" + movedHeading);
+				
 				if(_poseAtMoveStart == null)
 					continue;
 				
 				// Check if target is reached
-				float dx = pose.x - _poseAtMoveStart.x;
-				float dy = pose.y - _poseAtMoveStart.y;
 				float dHeading = pose.heading - _poseAtMoveStart.heading;
-				double travelled = Math.sqrt(dx * dx + dy * dy);
 				
-				if(travelled >= _moveTravelTarget)
+				if(_currLinearV != 0 && _travelled >= _moveTravelTarget)
 				{
 					_currLinearV = 0;
-					targetReached = true;
 				}
-				if(Math.abs(dHeading) >= Math.abs(_moveRotateTarget))
+				if(_currAngularV != 0 && Math.abs(dHeading) >= Math.abs(_moveRotateTarget))
 				{
 					_currAngularV = 0;
-					pose.heading = normalizeAng(_poseAtMoveStart.heading + _moveRotateTarget);
-					targetReached = true;
+					//pose.heading = normalizeAng(_poseAtMoveStart.heading + _moveRotateTarget);
 				}
 				
-				if(travelled >= _moveTravelLimit || Math.abs(dHeading) >= _moveRotateLimit)
+				if(_travelled >= _moveTravelLimit || Math.abs(dHeading) >= _moveRotateLimit)
 				{
 					_currLinearV = 0;
 					_currAngularV = 0;
@@ -156,13 +214,16 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 				}
 			}
 			
-			if((limitReached || (targetReached && _currLinearV == 0 && _currAngularV == 0)) && _moving)
+			if(_moving && !limitReached && _currLinearV == 0 && _currAngularV == 0)
+				targetReached = true;
+			
+			if(_moving && (limitReached || targetReached))
 			{				
 				_lastMoveLimited = limitReached;
 				for(MoveListener l : _listeners)
 					l.moveStopped(getMovement(), this);
 				_moving = false;
-				_expectedHeading = _poseAtMoveStart.heading + _moveRotateTarget;
+				_expectedHeading += _moveRotateTarget;//= _poseAtMoveStart.heading + _moveRotateTarget;
 			}
 			
 			
@@ -217,13 +278,16 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 	{
 		synchronized (pose)
 		{
+			_expectedHeading = normalizeAng(_expectedHeading);
+			pose.heading = normalizeAng(pose.heading);
+			
 			_poseAtMoveStart = pose.copy();
+			_travelled = 0;
 			_moveTravelTarget = travel;
 			_moveRotateTarget = rotate;
 			_moveTravelLimit = Double.POSITIVE_INFINITY;
 			_moveRotateLimit = Double.POSITIVE_INFINITY;
 			_lastMoveLimited = false;
-			
 			
 			for(MoveListener l : _listeners)
 				l.moveStarted(getTargetMovement(), this);
@@ -238,8 +302,6 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 	{
 		Move.MoveType type = getMoveType();
 		
-		float dx, dy;
-
 		switch(type) 
 		{
 			case ARC:
@@ -272,10 +334,14 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 						float ang = params.get("angle").as();
 						rotate(ang, true);
 						return new TDNRoot();
+					case "rotateTo":
+						ang = params.get("angle").as();
+						nav.rotateTo(ang, true);
+						return new TDNRoot();
 					case "getPose":
 						return new TDNRoot().insertValue("x", new TDNValue(pose.x, TDNParsers.FLOAT))
 							.insertValue("y", new TDNValue(pose.y, TDNParsers.FLOAT))
-							.insertValue("heading", new TDNValue(pose.heading, TDNParsers.FLOAT));
+							.insertValue("heading", new TDNValue(normalizeAng(pose.heading), TDNParsers.FLOAT));
 					case "registerMoveListener":
                         TDNValue port = params.get("port");
                         TDNValue id = params.get("id");
@@ -367,6 +433,13 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 						return new TDNRoot();
 					case "getExpectedHeading":				        
 				        return new TDNRoot().insertValue("expectedHeading", new TDNValue(_expectedHeading, TDNParsers.FLOAT));
+					case "setExpectedHeading":
+						TDNValue expectedHeading = params.get("heading");
+						if(expectedHeading == null)
+							throw new RequestParamsException("No expectedHeading present in the current root", "limit");
+						
+						SimRobot.this._expectedHeading = (float) expectedHeading.as();
+				        return new TDNRoot();
 					default:
 						throw new UnknownRequestException("Unknown request: " + request);
 				}
@@ -480,7 +553,7 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 			dx = pose.x - _poseAtMoveStart.x;
 			dy = pose.y - _poseAtMoveStart.y;			
 		}
-		double distance = Math.sqrt(dx * dx + dy * dy);
+		double distance = _travelled;//Math.sqrt(dx * dx + dy * dy);
 		float angle = pose.heading - _poseAtMoveStart.heading;
 		
 		switch(type) 

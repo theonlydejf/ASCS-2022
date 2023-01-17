@@ -75,17 +75,6 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 		w.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 	}
 
-	private static class _RemoteEventListener implements RobotCommanderListener
-	{
-		@Override
-		public void moveEventReceived(String name, TDNRoot params, Socket client, int robotID)
-		{
-			System.out.println("Event name: " + name);
-			System.out.println("Params:" + params.toString());
-		}
-
-	}
-
 	public RobotCommanderWindow(RemoteASCSRobot robot)
 	{
 		_robot = robot;
@@ -108,8 +97,8 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 				}
 				catch (IOException e)
 				{
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					JOptionPane.showMessageDialog(null, "Failed to disconnect from robot " + robot.getID() + ": " + e.getMessage(), "Connection error",
+						JOptionPane.ERROR_MESSAGE);
 				}
 			}
 		});
@@ -132,28 +121,46 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 		sendBtn.addActionListener(w ->
 		{
 			Request rqst = RemoteASCSRobot.moveRequests.get(cmdTxt.getText());
+			if(rqst == null)
+			{
+				JOptionPane.showMessageDialog(null, "Unknown request", "Unknown request",
+					JOptionPane.ERROR_MESSAGE);
+				return;
+			}
 
 			Object[] params = new Object[rqst.params.length];
 			for (int i = 0; i < params.length; i++)
 			{
-				String str = JOptionPane.showInputDialog( "{" + rqst.paramTypes[i] + "} " + rqst.params[i]);
-				switch (rqst.paramTypes[i])
+				try
 				{
-					case "flt":
-						params[i] = Float.parseFloat(str);
-					break;
-
-					case "int":
-						params[i] = Integer.parseInt(str);
-					break;
-
-					case "bln":
-						params[i] = Boolean.parseBoolean(str);
-					break;
-
-					case "str":
-						params[i] = str;
-					break;
+					String str = JOptionPane.showInputDialog( "{" + rqst.paramTypes[i] + "} " + rqst.params[i]);
+					if(str == null || str.length() <= 0)
+						return;
+					
+					switch (rqst.paramTypes[i])
+					{
+						case "flt":
+							params[i] = Float.parseFloat(str);
+							break;
+							
+						case "int":
+							params[i] = Integer.parseInt(str);
+							break;
+							
+						case "bln":
+							params[i] = Boolean.parseBoolean(str);
+							break;
+							
+						case "str":
+							params[i] = str;
+							break;
+					}
+				}
+				catch(NumberFormatException e)
+				{
+					JOptionPane.showMessageDialog(null, "You need to enter a number", "Not a number",
+						JOptionPane.WARNING_MESSAGE);
+					i--;
 				}
 			}
 			TDNRoot cmd = rqst.toTDN(rqst.parseParams(null, params));
@@ -162,28 +169,25 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 			{
 				JOptionPane.showMessageDialog(this, "Robot not connected!", "Disconnected", JOptionPane.ERROR_MESSAGE);
 				return;
-			}
-
-			for(Object o : params)
-				System.out.println(o);
+			};
 			
 			try
 			{
 				TDNRoot response = _robot.api.rawRequest(cmd);
 
 				JOptionPane.showMessageDialog(this, response.toString(), "Response", JOptionPane.PLAIN_MESSAGE);
-				System.out.println(response.toString());
 			}
 			catch (IOException e1)
 			{
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
+				JOptionPane.showMessageDialog(null, "Sailed to send the request: " + e1.getMessage(), "Connection error",
+					JOptionPane.ERROR_MESSAGE);
 			}
 		});
 		sendBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
 		createCmdPanel.add(sendBtn);
 
 		getContentPane().add(createCmdPanel);
+		
 		_eventLbl = new JLabel("No last event");
 		_eventLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
 		getContentPane().add(_eventLbl);

@@ -5,14 +5,17 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 
 import lejos.robotics.geometry.Line;
 import lejos.robotics.geometry.Point;
+import lejos.robotics.geometry.Point2D;
 import lejos.robotics.mapping.LineMap;
 import lejos.robotics.navigation.DestinationUnreachableException;
 import lejos.robotics.navigation.Pose;
 import lejos.robotics.navigation.Waypoint;
 import lejos.robotics.pathfinding.Path;
+import team.hobbyrobot.robotmodeling.RemoteASCSRobot;
 
 public class CollisionAvoider
 {
@@ -21,16 +24,38 @@ public class CollisionAvoider
 	private LineMap _map;
 
 	private DijkstraPathFinder _pathFinder;
+	
+	private double _safeDist;
 
-	public CollisionAvoider(Dimension size)
+	public CollisionAvoider(Dimension size, double safeDistance)
 	{
 		_size = size;
 		_map = new LineMap(new Line[] {}, new lejos.robotics.geometry.Rectangle(0, 0, _size.width, _size.height));
 		_pathFinder = new DijkstraPathFinder(_map);
+		_safeDist = safeDistance;
 	}
 
+	public Path getPath(Pose start, Waypoint end, Point2D... robots) throws DestinationUnreachableException
+	{
+		// Update path finder with the current no-go zone
+		ArrayList<Line> obstacles = new ArrayList<Line>();
+		for(Point2D robot : robots)
+			obstacles.addAll(
+				RemoteASCSRobot.getLinesFromPoints(
+					RemoteASCSRobot.getRobotBoundingBox(0, robot.getX(), robot.getY())));
+		return getPath(start, end, obstacles);
+	}
+	
+	public Path getPath(Pose start, Waypoint end, ArrayList<Line> obstacles) throws DestinationUnreachableException
+	{		
+		_pathFinder.setMap(obstacles);
+		_pathFinder.lengthenLines((int)_safeDist*2 + 1);
+		Path out = _pathFinder.findRoute(start, end);
+		return out;
+	}
+	
 	//TODO Kdyz robot ma spoustu casu, ignoruj konecnou pozici jiz jedouciho robota
-	public Path getPath(Graphics2D g, Vector A, Vector B, Vector C, Vector D, float headingStart, Float headingEnd,
+	public LimitedPath getPath(Graphics2D g, Vector A, Vector B, Vector C, Vector D, float headingStart, Float headingEnd,
 		double robotSize, double deltaA) throws DestinationUnreachableException
 	{
 		// Calculate colliders, which represent robots destination positions
@@ -63,29 +88,9 @@ public class CollisionAvoider
 		// Calculate the point, at which the robots could collide
 		Vector E = getCollisionPoint(A, B, C, deltaA);
 
-		Vector EB = null;
-		if (E != null)
-			EB = B.minus(E);
-
-		//if(EB != null && EB.dot(EB) < safeDistance * safeDistance)
-
 		// Create lines, which represent a no-go zone for the second robot. 
-		// That's destination of the first robot with some padding.
-		ArrayList<Line> obstructions = new ArrayList<Line>();
-		// @formatter:off
-				obstructions.add(new Line(
-								(float)(B.cartesian(0) + robotSize*2), (float)(B.cartesian(1) + robotSize*2),
-								(float)(B.cartesian(0) + robotSize*2), (float)(B.cartesian(1) - robotSize*2)));
-				obstructions.add(new Line(
-								(float)(B.cartesian(0) + robotSize*2), (float)(B.cartesian(1) - robotSize*2),
-								(float)(B.cartesian(0) - robotSize*2), (float)(B.cartesian(1) - robotSize*2)));
-				obstructions.add(new Line(
-								(float)(B.cartesian(0) - robotSize*2), (float)(B.cartesian(1) - robotSize*2),
-								(float)(B.cartesian(0) - robotSize*2), (float)(B.cartesian(1) + robotSize*2)));
-				obstructions.add(new Line(
-								(float)(B.cartesian(0) - robotSize*2), (float)(B.cartesian(1) + robotSize*2),
-								(float)(B.cartesian(0) + robotSize*2), (float)(B.cartesian(1) + robotSize*2)));
-				// @formatter:on
+		// That's destination of the first robot.
+		ArrayList<Line> obstructions = RemoteASCSRobot.getLinesFromPoints(RemoteASCSRobot.getRobotBoundingBox(0, B.cartesian(0), B.cartesian(1)));
 
 		// Draw the no-go zone
 		if (g != null)
@@ -98,7 +103,7 @@ public class CollisionAvoider
 		}
 		// Update path finder with the current no-go zone
 		_pathFinder.setMap(obstructions);
-		_pathFinder.lengthenLines(1);
+		_pathFinder.lengthenLines((int)_safeDist*2 + 1);
 
 		// Convert Vectors to starting Pose and destination Waypoint
 		Pose start = new Pose((float) C.cartesian(0), (float) C.cartesian(1), headingStart);
@@ -107,7 +112,7 @@ public class CollisionAvoider
 			end = new Waypoint((float) D.cartesian(0), (float) D.cartesian(1), headingEnd);
 		// Calculate shortest path to the destination with consideration of the
 		// no-go zone
-		Path path = _pathFinder.findRoute(start, end);
+		LimitedPath path = new LimitedPath(_pathFinder.findRoute(start, end));
 
 		// If no potential collision point was found, return the found path without
 		// limmiting its movement
@@ -121,19 +126,20 @@ public class CollisionAvoider
 
 		// Calculate a collider for an area, where there is possibility of the two
 		// robots colliding
-		PathCollider b = new PathCollider(E, B.minus(B.minus(A).direction().scale(robotSize)), robotSize);
+		Vector eDelta = B.minus(A).direction().scale(robotSize);
+		PathCollider b = new PathCollider(E.minus(eDelta), E.plus(eDelta), robotSize);
 		if (g != null)
 		{
 			g.setColor(Color.orange);
 			b.draw(g);
 		}
-
+		
 		// If the first robot doesn't go through the collision area, return the 
 		// found path without limmiting its movement
 		if (!c.intersects(b))
 			return path;
 
-		double boundingBoxPadding = robotSize * Math.sqrt(2);
+		double boundingBoxPadding = robotSize * 2;
 		LinkedList<Line> boundingBox = new LinkedList<Line>();
 
 		// TODO Remove lengthening fo the horizontal lines on the right
@@ -239,15 +245,15 @@ public class CollisionAvoider
 				limit = dist;
 		}
 
-		LimmitedPath limmitedPath = new LimmitedPath();
+		LimitedPath limmitedPath = new LimitedPath();
 		limmitedPath.addAll(path);
-		limmitedPath.limmitedStartWaypointIndex = collisionStartIdx;
+		limmitedPath.limitedStartWaypointIndex = collisionStartIdx;
 		limmitedPath.travelLimit = limit;
 
 		return limmitedPath;
 	}
 
-	private Vector getCollisionPoint(Vector A, Vector B, Vector C, double deltaA)
+	public Vector getCollisionPoint(Vector A, Vector B, Vector C, double deltaA)
 	{
 		Vector AB = B.minus(A);
 		double distAB = AB.magnitude();

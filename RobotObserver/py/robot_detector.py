@@ -14,7 +14,7 @@ def _get_robot_dict(id, x, y, heading):
     return {"id": id, "x": x, "y": y, "heading": heading}
 
 class RobotDetector:
-    def __init__(self, camera_idx: int, graphics: bool = False, rscs_path: str = "robot_detector.rscs", tag_family: str = "tag25h9", tag_size=0, tag_margin=0, plane_size: tuple = (1, 1), calib_rect_tags: tuple = (1, 2, 3, 4)):
+    def __init__(self, camera_idx: int, graphics: bool = False, rscs_path: str = "robot_detector.rscs", tag_family: str = "tag25h9", tag_size=0, tag_margin=0, plane_size: tuple = (1, 1), calib_rect_tags: tuple = (1, 2, 3, 4), id_blacklist = None):
         # Init fields
         self._camera_idx: int = camera_idx
         self._detector: apriltag.Detector = apriltag.Detector(apriltag.DetectorOptions(families=tag_family))
@@ -27,6 +27,10 @@ class RobotDetector:
         self._plane_size = plane_size
         self._tag_size = tag_size
         self._tag_margin = tag_margin
+        if id_blacklist is None:
+            self._id_blacklist = []
+        else:
+            self._id_blacklist = id_blacklist
 
         # Load resources
         from os.path import exists
@@ -127,8 +131,12 @@ class RobotDetector:
             ptB = (int(ptB[0]), int(ptB[1]))
             ptA = (int(ptA[0]), int(ptA[1]))
 
-            # If robot is not present in the calibration dictionary, give him a default calibration values
             robot_id = str(tag.tag_id)
+            # If ID is blacklisted -> skip it
+            if(int(robot_id) in self._id_blacklist):
+                continue
+
+            # If robot is not present in the calibration dictionary, give him a default calibration values
             if robot_id not in self._rscs["calib"]["robots"]:
                 self.calibrate_robot(robot_id, 0, 0, 0)
 

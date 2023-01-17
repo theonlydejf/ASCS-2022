@@ -24,6 +24,8 @@ public class SimWindow extends JFrame implements MoveListener
 		//planeWidth = 2360l;
 		//planeHeight = 1140l;
 		
+		args = "2360 1140 2111,2222,2333,970,570,90 3111,3222,3333,1390,570,90".split("\\s");
+		
 		planeWidth = Long.parseLong(args[0]);
 		planeHeight = Long.parseLong(args[1]);
 		
@@ -40,11 +42,10 @@ public class SimWindow extends JFrame implements MoveListener
 			float y = Float.parseFloat(data[4]);
 			float h = Float.parseFloat(data[5]);
 			
-			SimRobot robot = new SimRobot(logger, api, corrector);
-			robot.pose = new Pose(x, y, h);
+			SimRobot robot = new SimRobot(logger, api, corrector, new Pose(x, y, h));
+
 			robot.addMoveListener(w);
 			w._robots.add(robot);
-			robot.rotate(0);
 		}
 				
 		/*SimRobot robot1 = new SimRobot(2111, 2222, 2333);

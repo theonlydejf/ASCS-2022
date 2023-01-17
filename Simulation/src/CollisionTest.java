@@ -319,7 +319,8 @@ public class CollisionTest extends JFrame
 
 			// Calculate a collider for an area, where there is possibility of the two
 			// robots colliding
-			PathCollider b = new PathCollider(E, B.minus(B.minus(A).direction().scale(robotSize)), robotSize);
+			Vector eDelta = B.minus(A).direction().scale(robotSize);
+			PathCollider b = new PathCollider(E.minus(eDelta), E.plus(eDelta), robotSize);
 			g.setColor(Color.orange);
 			b.draw(g);
 			

@@ -5,19 +5,19 @@ import java.util.ArrayList;
 import lejos.robotics.navigation.Waypoint;
 import lejos.robotics.pathfinding.Path;
 
-public class LimmitedPath extends Path
+public class LimitedPath extends Path
 {	
-	public LimmitedPath()
+	public LimitedPath()
 	{
 		super();
 	}
-	
-	public LimmitedPath(ArrayList<Waypoint> _recordedPath)
+		
+	public LimitedPath(ArrayList<Waypoint> _recordedPath)
 	{
 		for(Waypoint w : _recordedPath)
 			add(w);
 	}
-	public int limmitedStartWaypointIndex = -1;
+	public int limitedStartWaypointIndex = -1;
 	public double travelLimit = Double.POSITIVE_INFINITY;
 	public double rotateLimit = Double.POSITIVE_INFINITY;
 }

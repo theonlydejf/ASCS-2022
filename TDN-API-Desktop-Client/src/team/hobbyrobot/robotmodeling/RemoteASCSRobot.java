@@ -1,11 +1,13 @@
 package team.hobbyrobot.robotmodeling;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.Map;
@@ -13,6 +15,9 @@ import java.util.Map.Entry;
 
 import org.json.simple.parser.ParseException;
 
+import lejos.robotics.geometry.Line;
+import lejos.robotics.geometry.Point;
+import lejos.robotics.geometry.Point2D;
 import lejos.robotics.navigation.Move;
 import lejos.robotics.navigation.Pose;
 import lejos.robotics.navigation.Waypoint;
@@ -26,7 +31,6 @@ import team.hobbyrobot.net.api.desktop.requests.Response;
 import team.hobbyrobot.net.api.remoteevents.RemoteEventListener;
 import team.hobbyrobot.net.api.remoteevents.RemoteEventListenerServer;
 import team.hobbyrobot.net.api.streaming.TDNSender;
-import team.hobbyrobot.robotmodeling.utils.Tuple;
 import team.hobbyrobot.robotobserver.RobotCorrector;
 import team.hobbyrobot.robotobserver.RobotModel;
 import team.hobbyrobot.robotobserver.RobotObserver;
@@ -42,7 +46,9 @@ import team.hobbyrobot.tdn.core.TDNValue;
  */
 public class RemoteASCSRobot implements Closeable
 {
-	public static final float SIZE = 100;
+	public static final float SIZE = 120;
+	public static final int BOUNDING_BOX_VERTECIES_COUNT = 4;
+	public static final double BOUNDING_BOX_ANGLE_OFFSET = Math.PI / 4;
 	
 	/** Event listener server, which listens to all remote events from connected robots */
 	public static RemoteEventListenerServer eventServer = null;
@@ -137,7 +143,57 @@ public class RemoteASCSRobot implements Closeable
 	{
 		return _robots.get(id);
 	}
+	
+	public static RemoteASCSRobot[] getRobots()
+	{
+		return _robots.values().toArray(new RemoteASCSRobot[0]);
+	}
+	
+	public static Point2D[] getRobotBoundingBox(double padding, double x, double y)
+	{
+		Point2D[] vertecies = new Point2D[BOUNDING_BOX_VERTECIES_COUNT];
+		double R = ((SIZE + padding) * 2) / Math.cos(Math.PI / vertecies.length);
+		for(int i = 0; i < vertecies.length; i++)
+		{
+			vertecies[i] = new Point2D.Double(
+				x + R * Math.cos((2 * Math.PI * i) / vertecies.length + BOUNDING_BOX_ANGLE_OFFSET),
+				y + R * Math.sin((2 * Math.PI * i) / vertecies.length + BOUNDING_BOX_ANGLE_OFFSET)
+				);
+		}
+		return vertecies;
+		/*return new Point2D[] {
+				new Point2D.Double(x + SIZE*2, y + SIZE*2),
+				new Point2D.Double(x + SIZE*2, y - SIZE*2),
+				new Point2D.Double(x - SIZE*2, y - SIZE*2),
+				new Point2D.Double(x - SIZE*2, y + SIZE*2)
+		};*/
+	}
 
+	public static ArrayList<Line> getLinesFromPoints(Point2D... points)
+	{
+		ArrayList<Line> out = new ArrayList<Line>();
+		Point2D last = points[0];
+		for(int i = points.length - 1; i >= 0; i--)
+		{
+			Point2D curr = points[i];
+			out.add(new Line((float)curr.getX(), (float)curr.getY(), (float)last.getX(), (float)last.getY()));
+			last = curr;
+		}
+		
+		if(points.length < 4)
+			return out;
+		
+		int half = points.length / 2;
+		for(int i = 0; i < half; i++)
+		{
+			Point2D first = points[i];
+			Point2D second = points[i+half];
+			out.add(new Line((float)first.getX(), (float)first.getY(), (float)second.getX(), (float)second.getY()));
+		}
+		
+		return out;
+	}
+	
 	/**
 	 * Wrapper for RemoteEventListener, which distributes the received events to the targeted robot
 	 * models, based on their IDs, specified by the value in the event params root with key "id"
@@ -152,9 +208,7 @@ public class RemoteASCSRobot implements Closeable
 		@Override
 		public void eventReceived(String name, TDNRoot params, Socket client)
 		{
-			System.out.println("Event received: " + name + " " + params);
-
-			// If id is not present in the params -> skip the event
+			// If ID is not present in the params -> skip the event
 			TDNValue idTDN = params.get("id");
 			if (idTDN == null)
 				return;
@@ -165,7 +219,7 @@ public class RemoteASCSRobot implements Closeable
 			switch (name)
 			{
 				case "moveStarted":
-					Move simpleMove = getMoveFromTDN(params.get("move").as());
+					Move simpleMove = TDNHelper.getMoveFromTDN(params.get("move").as());
 					robotMovements.put(id, simpleMove);
 					for (RemoteSimpleMoveEventListener l : allSimpleMovesListeners)
 						l.moveStarted(id, simpleMove);
@@ -177,7 +231,7 @@ public class RemoteASCSRobot implements Closeable
 				break;
 
 				case "moveStopped":
-					simpleMove = getMoveFromTDN(params.get("move").as());
+					simpleMove = TDNHelper.getMoveFromTDN(params.get("move").as());
 					robotMovements.remove(id);
 					for (RemoteSimpleMoveEventListener l : allSimpleMovesListeners)
 						l.moveStopped(id, simpleMove);
@@ -189,8 +243,8 @@ public class RemoteASCSRobot implements Closeable
 				break;
 
 				case "atWaypoint":
-					Waypoint waypoint = getWaypointFromTDN(params.get("waypoint").as());
-					Pose pose = getPoseFromTDN(params.get("pose").as());
+					Waypoint waypoint = TDNHelper.getWaypointFromTDN(params.get("waypoint").as());
+					Pose pose = TDNHelper.getPoseFromTDN(params.get("pose").as());
 					int sequence = params.get("sequence").as();
 					for (RemoteNavigationEventListener l : allNavigationListeners)
 						l.atWaypoint(id, waypoint, pose, sequence);
@@ -200,8 +254,8 @@ public class RemoteASCSRobot implements Closeable
 				break;
 
 				case "pathComplete":
-					waypoint = getWaypointFromTDN(params.get("waypoint").as());
-					pose = getPoseFromTDN(params.get("pose").as());
+					waypoint = TDNHelper.getWaypointFromTDN(params.get("waypoint").as());
+					pose = TDNHelper.getPoseFromTDN(params.get("pose").as());
 					sequence = params.get("sequence").as();
 					for (RemoteNavigationEventListener l : allNavigationListeners)
 						l.pathComplete(id, waypoint, pose, sequence);
@@ -211,8 +265,8 @@ public class RemoteASCSRobot implements Closeable
 				break;
 
 				case "pathInterrupted":
-					waypoint = getWaypointFromTDN(params.get("waypoint").as());
-					pose = getPoseFromTDN(params.get("pose").as());
+					waypoint = TDNHelper.getWaypointFromTDN(params.get("waypoint").as());
+					pose = TDNHelper.getPoseFromTDN(params.get("pose").as());
 					sequence = params.get("sequence").as();
 					for (RemoteNavigationEventListener l : allNavigationListeners)
 						l.pathInterrupted(id, waypoint, pose, sequence);
@@ -226,96 +280,6 @@ public class RemoteASCSRobot implements Closeable
 			if (robot != null)
 				robot.remoteEventReceived(name, params, client);
 		}
-
-		private TDNValue[] extractTDNValues(TDNRoot root, String... keys)
-		{
-			TDNValue[] out = new TDNValue[keys.length];
-			for (int i = 0; i < keys.length; i++)
-			{
-				out[i] = root.get(keys[i]);
-			}
-
-			for (TDNValue val : out)
-			{
-				if (val == null)
-					return null;
-			}
-
-			return out;
-		}
-
-		private Move getMoveFromTDN(TDNRoot root)
-		{
-			// @formatter:off
-			TDNValue[] vals = extractTDNValues(root, 
-				"type", 
-				"distance", 
-				"angle", 
-				"travelSpeed", 
-				"rotateSpeed"
-			);
-			// @formatter:on
-
-			if (vals == null)
-				return null;
-
-			Move.MoveType moveType = Move.MoveType.valueOf(vals[0].as());
-			float distance = vals[1].as();
-			float angle = vals[2].as();
-			float travelSpeed = vals[3].as();
-			float rotateSpeed = vals[4].as();
-
-			return new Move(moveType, distance, angle, travelSpeed, rotateSpeed, false);
-		}
-
-		private Pose getPoseFromTDN(TDNRoot root)
-		{
-			// @formatter:off
-			TDNValue[] vals = extractTDNValues(root, 
-				"x", 
-				"y", 
-				"heading"
-			);
-			// @formatter:on
-
-			if (vals == null)
-				return null;
-
-			float x = vals[0].as();
-			float y = vals[1].as();
-			float heading = vals[2].as();
-
-			return new Pose(x, y, heading);
-		}
-
-		private Waypoint getWaypointFromTDN(TDNRoot root)
-		{
-			// @formatter:off
-			TDNValue[] vals = extractTDNValues(root, 
-				"x", 
-				"y",
-				"headingRequired"
-			);
-			// @formatter:on
-
-			if (vals == null)
-				return null;
-
-			Float x = vals[0].as();
-			Float y = vals[1].as();
-
-			if ((boolean) vals[2].value)
-			{
-				TDNValue headingTDN = root.get("heading");
-				if (headingTDN == null)
-					return null;
-
-				return new Waypoint(x.doubleValue(), y.doubleValue(), ((Float)headingTDN.as()).doubleValue());
-			}
-
-			return new Waypoint(x, y);
-		}
-
 	}
 
 	public static class Requests
@@ -323,14 +287,16 @@ public class RemoteASCSRobot implements Closeable
 		public static final Request TRAVEL;
 		public static final Request ROTATE;
 		public static final Request ROTATE_TO;
-		public static final Request GET_POSE;
 		public static final Request STOP;
 		public static final Request FLT;
+		
 		public static final Request GO_TO;
 		public static final Request FOLLOW_PATH;
 		public static final Request CONTINUE_PATH;
 		public static final Request IS_PATH_COMPLETED;
 		public static final Request GET_REMAINING_PATH_COUNT;
+		
+		public static final Request GET_POSE;
 		public static final Request SET_SPEED;
 		public static final Request SET_NAV_TRAVEL_LIMIT;
 		public static final Request SET_MAX_SPEED;
@@ -339,30 +305,33 @@ public class RemoteASCSRobot implements Closeable
 		public static final Request SET_POSITION;
 		public static final Request SET_EXPECTED_HEADING;
 		public static final Request GET_EXPECTED_HEADING;
+
 		public static final Request REGISTER_MOVE_LISTENER;
 
 		static
 		{
-			TRAVEL = moveRequests.get("travel");
-			ROTATE = moveRequests.get("rotate");
-			ROTATE_TO = moveRequests.get("rotateTO");
-			GET_POSE = moveRequests.get("getPose");
-			STOP = moveRequests.get("stop");
-			FLT = moveRequests.get("flt");
-			GO_TO = moveRequests.get("goto");
-			FOLLOW_PATH = moveRequests.get("followPath");
-			CONTINUE_PATH = moveRequests.get("continuePath");
-			IS_PATH_COMPLETED = moveRequests.get("isPathCompleted");
-			GET_REMAINING_PATH_COUNT = moveRequests.get("getRemainingPath");
-			SET_SPEED = moveRequests.get("setSpeed");
-			SET_NAV_TRAVEL_LIMIT = moveRequests.get("setNavTravelLimit");
-			SET_MAX_SPEED = moveRequests.get("setMaxSpeed");
-			GET_SPEED = moveRequests.get("getSpeed");
-			RESET_GYRO_AT = moveRequests.get("resetGyroAt");
-			SET_POSITION = moveRequests.get("setPosition");
-			SET_EXPECTED_HEADING = moveRequests.get("setExpectedHeading");
-			GET_EXPECTED_HEADING = moveRequests.get("getExpectedHeading");
-			REGISTER_MOVE_LISTENER = moveRequests.get("registerMoveListener");
+			// @formatter:off
+			TRAVEL = 					moveRequests.get("travel");
+			ROTATE =					moveRequests.get("rotate");
+			ROTATE_TO = 				moveRequests.get("rotateTo");
+			GET_POSE = 					moveRequests.get("getPose");
+			STOP = 						moveRequests.get("stop");
+			FLT = 						moveRequests.get("flt");
+			GO_TO = 					moveRequests.get("goto");
+			FOLLOW_PATH = 				moveRequests.get("followPath");
+			CONTINUE_PATH = 			moveRequests.get("continuePath");
+			IS_PATH_COMPLETED = 		moveRequests.get("isPathCompleted");
+			GET_REMAINING_PATH_COUNT = 	moveRequests.get("getRemainingPath");
+			SET_SPEED = 				moveRequests.get("setSpeed");
+			SET_NAV_TRAVEL_LIMIT = 		moveRequests.get("setNavTravelLimit");
+			SET_MAX_SPEED = 			moveRequests.get("setMaxSpeed");
+			GET_SPEED = 				moveRequests.get("getSpeed");
+			RESET_GYRO_AT = 			moveRequests.get("resetGyroAt");
+			SET_POSITION = 				moveRequests.get("setPosition");
+			SET_EXPECTED_HEADING = 		moveRequests.get("setExpectedHeading");
+			GET_EXPECTED_HEADING = 		moveRequests.get("getExpectedHeading");
+			REGISTER_MOVE_LISTENER = 	moveRequests.get("registerMoveListener");
+			// @formatter:on
 		}
 	}
 
@@ -401,7 +370,7 @@ public class RemoteASCSRobot implements Closeable
 					model = _robotModelsAtMoveStart.get(id);
 				}
 
-				model.heading = globalCorrector.getRobotModel(id).heading;
+				//model.heading = globalCorrector.getRobotModel(id).heading;
 				switch (move.getMoveType())
 				{
 					case ARC:
@@ -414,7 +383,7 @@ public class RemoteASCSRobot implements Closeable
 						drawStop(g, model);
 					break;
 					case TRAVEL:
-						drawTravel(g, model, move.getDistanceTraveled());
+						drawTravel(g, model, move.getDistanceTraveled(), globalCorrector.getRobotModel(id).heading);
 					break;
 					default:
 					break;
@@ -432,8 +401,13 @@ public class RemoteASCSRobot implements Closeable
 			double y = model.y - ROBOT_SIZE / 2;
 
 			g.setColor(Color.blue);
-			g.fillArc((int) (x * _scale), (int) (y * _scale), (int) (ROBOT_SIZE * _scale), (int) (ROBOT_SIZE * _scale),
+			g.drawArc((int) (x * _scale), (int) (y * _scale), (int) (ROBOT_SIZE * _scale), (int) (ROBOT_SIZE * _scale),
 				(int) -model.heading, (int) -ang);
+			g.setStroke(new BasicStroke(3));
+			g.drawArc((int) (x * _scale), (int) (y * _scale), (int) (ROBOT_SIZE * _scale), (int) (ROBOT_SIZE * _scale),
+				(int) (-model.heading - ang/2), (int) -ang/2);
+
+			g.setStroke(new BasicStroke(1));
 		}
 
 		private void drawStop(Graphics2D g, RobotModel model)
@@ -445,24 +419,35 @@ public class RemoteASCSRobot implements Closeable
 			double y = model.y - ROBOT_SIZE / 2;
 
 			g.setColor(Color.red);
-			g.fillRect((int) (x * _scale), (int) (y * _scale), (int) (ROBOT_SIZE * _scale),
+			g.drawRect((int) (x * _scale), (int) (y * _scale), (int) (ROBOT_SIZE * _scale),
 				(int) (ROBOT_SIZE * _scale));
+			g.drawLine((int)(x * _scale), (int)(y * _scale), (int)(x * _scale + ROBOT_SIZE * _scale), (int)(y * _scale + ROBOT_SIZE * _scale));
+			g.drawLine((int)(x * _scale + ROBOT_SIZE * _scale), (int)(y * _scale), (int)(x * _scale), (int)(y * _scale + ROBOT_SIZE * _scale));
 
 		}
 
-		private void drawTravel(Graphics2D g, RobotModel model, double dist)
+		private void drawTravel(Graphics2D g, RobotModel model, double dist, double currHead)
 		{
 			if (model == null)
 				return;
 
-			double heading_rad = model.heading / 180 * Math.PI;
+			double heading_rad = currHead / 180 * Math.PI;
 
-			double targetX = model.x + Math.cos(heading_rad) * dist;
-			double targetY = model.y + Math.sin(heading_rad) * dist;
+			double targetX = (model.x + Math.cos(heading_rad) * dist) * _scale;
+			double targetY = (model.y + Math.sin(heading_rad) * dist) * _scale;
 
+			double x = model.x * _scale;
+			double y = model.y * _scale;
+			
+			double arrowLeftX = x - Math.cos(heading_rad - Math.PI / 8) * 10;
+			double arrowLeftY = y - Math.sin(heading_rad - Math.PI / 8) * 10;
+			double arrowRightX = x - Math.cos(heading_rad + Math.PI / 8) * 10;
+			double arrowRightY = y - Math.sin(heading_rad + Math.PI / 8) * 10;
+			
 			g.setColor(Color.blue);
-			g.drawLine((int) (model.x * _scale), (int) (model.y * _scale), (int) (targetX * _scale),
-				(int) (targetY * _scale));
+			g.drawLine((int) x, (int) y, (int) targetX, (int) targetY);
+			g.drawLine((int) x, (int) y, (int) arrowLeftX, (int) arrowLeftY);
+			g.drawLine((int) x, (int) y, (int) arrowRightX, (int) arrowRightY);
 		}
 
 		@Override
@@ -579,7 +564,6 @@ public class RemoteASCSRobot implements Closeable
 			TDNRoot connectEventRqst = moveRequests.get("registerMoveListener").toTDN(portTDNValue, idTDNValue);
 			// Send the request
 			TDNRoot responseTDN = api.rawRequest(connectEventRqst);
-			System.out.println("RESPONSE: " + responseTDN.toString());
 			Response response = new Response(responseTDN);
 
 			// If connecting to remote event provider was successful -> create instance
@@ -606,6 +590,12 @@ public class RemoteASCSRobot implements Closeable
 		return _id;
 	}
 
+	public Point2D[] getBoudningBox(double padding)
+	{
+		RobotModel model = globalCorrector.getRobotModel(getID());
+		return getRobotBoundingBox(padding, model.x, model.y);
+	}
+	
 	public void addRobotListener(RemoteASCSRobotListener l)
 	{
 		_listeners.add(l);
@@ -645,7 +635,7 @@ public class RemoteASCSRobot implements Closeable
 				.insertValue(Requests.GO_TO.params[0], new TDNValue(waypoint.x, TDNParsers.FLOAT))
 				.insertValue(Requests.GO_TO.params[1], new TDNValue(waypoint.y, TDNParsers.FLOAT));
 			if (waypoint.isHeadingRequired())
-				pathRoots[i].insertValue(Requests.GO_TO.params[0],
+				pathRoots[i].insertValue(Requests.GO_TO.params[2],
 					new TDNValue((float) waypoint.getHeading(), TDNParsers.FLOAT));
 		}
 		TDNArray pathArr = new TDNArray(pathRoots, TDNParsers.ROOT);

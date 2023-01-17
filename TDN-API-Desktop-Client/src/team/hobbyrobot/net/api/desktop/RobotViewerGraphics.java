@@ -9,6 +9,9 @@ import java.awt.Rectangle;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
+import lejos.robotics.geometry.Line;
+import lejos.robotics.geometry.Point2D;
+import team.hobbyrobot.collisiondetection.PathPerformer;
 import team.hobbyrobot.graphics.PaintPanel;
 import team.hobbyrobot.graphics.Paintable;
 import team.hobbyrobot.python.BridgeListener;
@@ -18,6 +21,9 @@ import team.hobbyrobot.robotobserver.RobotObserverListener;
 
 public class RobotViewerGraphics implements Paintable, RobotObserverListener
 {
+	private static final Color transparentGray = new Color(Color.gray.getRed(), Color.gray.getGreen(), Color.gray.getBlue(), 170);
+	private static final Color transparentLightGray = new Color(Color.lightGray.getRed(), Color.lightGray.getGreen(), Color.lightGray.getBlue(), 128);
+
 	private Object _robotsLock = new Object();
 	private JSONArray _robots = null;
 
@@ -49,30 +55,63 @@ public class RobotViewerGraphics implements Paintable, RobotObserverListener
 		}
 		synchronized (_robotsLock)
 		{
+			// Draw bounding boxes
 			for (Object obj : _robots)
 			{
 				JSONObject robot = (JSONObject) obj;
 				double x = (double) robot.get("x");
 				double y = (double) robot.get("y");
+
+				Point2D[] bb = RemoteASCSRobot.getRobotBoundingBox(0, x, y);
+				int[] bb_xs = new int[bb.length];
+				int[] bb_ys = new int[bb.length];
+				for(int i = 0; i < bb.length; i++)
+				{
+					bb_xs[i] = (int)(bb[i].getX() * _scale);
+					bb_ys[i] = (int)(bb[i].getY() * _scale);
+				}
+				
+				g.setColor(transparentLightGray);
+				g.fillPolygon(bb_xs, bb_ys, bb.length);
+				
+				g.setColor(Color.lightGray);
+				for(double padding : new double[] { PathPerformer.SAFE_DISTANCE, 0 })
+				{
+					for(Line l : RemoteASCSRobot.getLinesFromPoints(RemoteASCSRobot.getRobotBoundingBox(padding, x, y)))
+					{
+						g.drawLine((int)(l.x1 * _scale), (int)(l.y1 * _scale), (int)(l.x2 * _scale), (int)(l.y2 * _scale));
+					}
+				}
+			}
+			
+			for (Object obj : _robots)
+			{
+				JSONObject robot = (JSONObject) obj;
+				double x = (double) robot.get("x") * _scale;
+				double y = (double) robot.get("y") * _scale;
 				double heading = (double) robot.get("heading");
 				long id = (long) robot.get("id");
 
 				double heading_rad = heading / 180 * Math.PI;
-
-				x *= _scale;
-				y *= _scale;
-				g.setColor(Color.black);
-				g.fillOval((int) (x - 5), (int) (y - 5), 10, 10);
-				g.drawLine((int) x, (int) y, (int) (x + 20 * Math.cos(heading_rad)),
-					(int) (y + 20 * Math.sin(heading_rad)));
 				
+				// Draw size of the robot
 				g.setColor(Color.gray);
 				double robotSize = RemoteASCSRobot.SIZE * _scale;
 				g.drawLine((int)(x-robotSize), (int)(y-robotSize), (int)(x+robotSize), (int)(y-robotSize));
 				g.drawLine((int)(x+robotSize), (int)(y-robotSize), (int)(x+robotSize), (int)(y+robotSize));
 				g.drawLine((int)(x+robotSize), (int)(y+robotSize), (int)(x-robotSize), (int)(y+robotSize));
 				g.drawLine((int)(x-robotSize), (int)(y+robotSize), (int)(x-robotSize), (int)(y-robotSize));
-
+				
+				g.setColor(transparentGray);
+				g.fillOval((int)(x-robotSize), (int)(y-robotSize), (int)(robotSize*2), (int)(robotSize*2));
+				
+				// Draw pose of the robot
+				g.setColor(Color.black);
+				g.fillOval((int) (x - 5), (int) (y - 5), 10, 10);
+				g.drawLine((int) x, (int) y, (int) (x + 20 * Math.cos(heading_rad)),
+					(int) (y + 20 * Math.sin(heading_rad)));
+				
+				// Draw ID of the robot
 				FontMetrics metrics = g.getFontMetrics(robotFont);
 				g.setColor(Color.red);
 				g.setFont(robotFont);

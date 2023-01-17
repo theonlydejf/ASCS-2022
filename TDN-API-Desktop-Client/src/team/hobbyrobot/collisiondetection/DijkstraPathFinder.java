@@ -70,7 +70,7 @@ public class DijkstraPathFinder implements PathFinder
 	 * @return an array list of waypoints. If no path exists, returns null
 	 */
 
-	private Path findPath(Point start, Point finish, ArrayList<Line> theMap) throws DestinationUnreachableException
+	private Path findPath(Point start, Waypoint finish, ArrayList<Line> theMap) throws DestinationUnreachableException
 	{
 		_map = theMap;
 		initialize(); // in case this method has already been called before
@@ -130,7 +130,20 @@ public class DijkstraPathFinder implements PathFinder
 			throw new DestinationUnreachableException();
 			//      return null;
 		}
-		return getRoute(destination);
+		Path path = getRoute(destination);
+		Path out = new Path();
+		out.add(path.get(0));
+		for(int i = 1; i < path.size(); i++)
+		{
+			Waypoint w0 = path.get(i-1);
+			Waypoint w1 = path.get(i);
+			if(w0.x != w1.x && w0.y != w1.y)
+				out.add(path.get(i));
+		}
+		
+		out.set(out.size()-1, finish);
+		
+		return out;
 	}
 
 	public void setMap(ArrayList<Line> theMap)
