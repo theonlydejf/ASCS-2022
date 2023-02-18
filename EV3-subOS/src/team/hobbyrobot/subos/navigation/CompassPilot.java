@@ -60,7 +60,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 		_angularAccel = 100;
 
 		_linearMinSpeed = 30;
-		_angularMinSpeed = 35;
+		_angularMinSpeed = 20;
 
 		_expectedHeading = hardware.getAngle();
 	}
@@ -316,7 +316,11 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 	public class RotateProcessor implements MoveProcessor
 	{
 		public static final int PID_CONTROL_PERIOD = 30; //ms
+		public static final int ENDING_CONDITION_TIME = 250;
+		public static final float ENDING_CONDITION_TOLERANCE = 3;
+		public static final float INTEGRAL_START_LIMIT = 20;
 
+		
 		/** Minimal speed, the robot is allowed to rotate at */
 		public float minSpeed;
 		/** Constant used for accelerating */
@@ -334,6 +338,8 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 		private Stopwatch _pidSw;
 		private Accelerator _accelerator;
 		private float _angleRotatedAtMoveStart = 0;
+		
+		private long lastTimeOutOfRange = 0;
 
 		public RotateProcessor()
 		{
@@ -375,10 +381,14 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 
 			// Angle travelled since the move has started
 			float travelledAng = hardware.getAngle() - _angleRotatedAtMoveStart;
-
+			float error = targetMove.getAngleTurned() - travelledAng;
+			if(Math.abs(error) > ENDING_CONDITION_TOLERANCE)
+				lastTimeOutOfRange = System.currentTimeMillis();
 			// True, if the move has completed
-			boolean rotateCompleted = (targetMove.getAngleTurned() - travelledAng)
-				* Math.signum(targetMove.getAngleTurned()) <= 0; //Math.round(travelledAng) == Math.round(targetMove.getAngleTurned());
+			Logger.main.log("Rotate time diff: " + (System.currentTimeMillis() - lastTimeOutOfRange));
+			boolean rotateCompleted = (System.currentTimeMillis() - lastTimeOutOfRange) >= ENDING_CONDITION_TIME; //(targetMove.getAngleTurned() - travelledAng)
+				// * Math.signum(targetMove.getAngleTurned()) <= 0; //Math.round(travelledAng) == Math.round(targetMove.getAngleTurned());
+			
 
 			// If the move has completed -> set the heading, at which the robot is expected to be
 			if (rotateCompleted)
@@ -396,6 +406,8 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 
 			// Calculate speed, based on how close the robot is to the target angle,
 			// The closer it is - the slower the robot moves
+			if(Math.abs(error) >= INTEGRAL_START_LIMIT)
+				_pid.setErrorSum(0);
 			float decelSpeed = (float) _pid.getOutput(travelledAng, targetMove.getAngleTurned());
 			float absDecelSpeed = Math.abs(decelSpeed);
 
@@ -561,7 +573,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			_distanceTravelledAtMoveStart = hardware.getDrivenDist();
 			//Logger.main.log("Travelling at expected heading: " + CompassPilot.this._expectedHeading);
 			_pidSw.reset();
-			_pid.reset();
+			_pid.reset(false);
 			_currPIDRate = 0;
 
 			if (resetParams)
@@ -596,7 +608,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 		 */
 		private float getTargetAng(float curRaw, float targetCartesian)
 		{
-			float times360 = 0;
+			/*float times360 = 0;
 			float adjustedAng = curRaw;
 			if (curRaw < 0)
 			{
@@ -615,7 +627,16 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 				newAng += 360;
 			}
 
-			return newAng;
+			return newAng;*/
+            double fullRotationCount = Math.floor(curRaw / 360);
+            int _out = (int)Math.round(fullRotationCount * 360 + targetCartesian);
+
+            if (_out - curRaw > 180)
+                _out -= 360;
+            if (_out - curRaw < -180)
+                _out += 360;
+
+            return _out;
 		}
 
 	}

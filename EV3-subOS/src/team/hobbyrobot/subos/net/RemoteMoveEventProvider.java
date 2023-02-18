@@ -59,69 +59,34 @@ public class RemoteMoveEventProvider extends RemoteEventProvider implements Move
     @Override
     public void moveStarted(Move event, MoveProvider mp) 
     {
-        try
-        {
-            newEvent("moveStarted", setParsedMoveParams(event, _robotId));
-        } 
-        catch (IOException e) 
-        {
-            e.printStackTrace();
-        }
+        newEvent("moveStarted", setParsedMoveParams(event, _robotId));
     }
 
     @Override
     public void moveStopped(Move event, MoveProvider mp) 
     {
-        try 
-        {
-            newEvent("moveStopped", setParsedMoveParams(event, _robotId));
-        } 
-        catch (IOException e) 
-        {
-            e.printStackTrace();
-        }
+        newEvent("moveStopped", setParsedMoveParams(event, _robotId));
     }
 
     @Override
     public void atWaypoint(Waypoint waypoint, Pose pose, int sequence) 
     {
-        try 
-        {
-            newEvent("atWaypoint", setParsedWaypointParams(waypoint, pose, _robotId)
-            	.insertValue("sequence", new TDNValue(sequence, TDNParsers.INTEGER)));
-        } 
-        catch (IOException e) 
-        {
-            e.printStackTrace();
-        }
+        newEvent("atWaypoint", setParsedWaypointParams(waypoint, pose, _robotId)
+        	.insertValue("sequence", new TDNValue(sequence, TDNParsers.INTEGER)));
     }
 
     @Override
     public void pathComplete(Waypoint waypoint, Pose pose, int sequence) 
     {
-        try 
-        {
-            newEvent("pathComplete", setParsedWaypointParams(waypoint, pose, _robotId)
-            	.insertValue("sequence", new TDNValue(sequence, TDNParsers.INTEGER)));
-        } 
-        catch (IOException e) 
-        {
-            e.printStackTrace();
-        }
+        newEvent("pathComplete", setParsedWaypointParams(waypoint, pose, _robotId)
+        	.insertValue("sequence", new TDNValue(sequence, TDNParsers.INTEGER)));
     }
 
     @Override
     public void pathInterrupted(Waypoint waypoint, Pose pose, int sequence) 
     {
-        try 
-        {
-            newEvent("pathInterrupted", setParsedWaypointParams(waypoint, pose, _robotId)
-            	.insertValue("sequence", new TDNValue(sequence, TDNParsers.INTEGER)));
-        } 
-        catch (IOException e) 
-        {
-            e.printStackTrace();
-        }
+        newEvent("pathInterrupted", setParsedWaypointParams(waypoint, pose, _robotId)
+        	.insertValue("sequence", new TDNValue(sequence, TDNParsers.INTEGER)));
     }
     
     public void setID(int id)

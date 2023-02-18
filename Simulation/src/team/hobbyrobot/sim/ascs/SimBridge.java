@@ -14,11 +14,13 @@ import org.json.simple.JSONObject;
 public class SimBridge extends Thread
 {
 	private List<SimRobot> _robots;
+	private List<StorageCell> _storageCells;
 	private ServerSocket _server;
 
-	public SimBridge(List<SimRobot> robots, int port) throws IOException
+	public SimBridge(List<SimRobot> robots, List<StorageCell> storageCells, int port) throws IOException
 	{
 		_robots = robots;
+		_storageCells = storageCells;
 		_server = new ServerSocket(port);
 		setDaemon(true);
 	}
@@ -48,6 +50,18 @@ public class SimBridge extends Thread
 							r.put("x", robot.pose.x);
 							r.put("y", robot.pose.y);
 							r.put("heading", robot.pose.heading);
+							array.add(r);
+						}
+					}
+					for (StorageCell cell : _storageCells)
+					{
+						synchronized (cell.pose)
+						{
+							JSONObject r = new JSONObject();
+							r.put("id", cell.id);
+							r.put("x", cell.pose.x);
+							r.put("y", cell.pose.y);
+							r.put("heading", cell.pose.heading);
 							array.add(r);
 						}
 					}

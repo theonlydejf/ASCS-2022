@@ -35,17 +35,26 @@ public class RemoteEventProvider
         throw new UnsupportedOperationException();
     }
     
-    public void newEvent(String event, TDNRoot params) throws IOException
+    public void newEvent(String event, TDNRoot params)
     {
     	synchronized(_eventLock)
     	{
     		for(EventListener l : _listeners)
     		{
-    			createRoot(event, params).writeToStream(l.bw);
-    			l.bw.flush();
+    			if(!l.connected)
+    				continue;
+    			try
+    			{
+    				createRoot(event, params).writeToStream(l.bw);
+    				l.bw.flush();    				
+    			}
+    			catch (IOException ex)
+    			{
+    				l.connected = false;
+    			}
     		}
     		   
-    		System.out.println("Notified " + _listeners.size() + " listeners about event: " + event);
+    		//System.out.println("Notified " + _listeners.size() + " listeners about event: " + event);
     		// Wait to give listeners time to receive the event
     		/*try
 			{
@@ -75,5 +84,6 @@ public class RemoteEventProvider
         }
         public Socket socket;
         public BufferedWriter bw;
+        public boolean connected = true;
     }
 }

@@ -51,7 +51,15 @@ public class Request
         
         for(int i = 0; i < params.length; i++)
         {
-            out[i] = new TDNValue(objects[i], stg.parsers().get(paramTypes[i]));
+        	String type = paramTypes[i];
+        	Object value = objects[i];
+        	if(type.equals("any"))
+        	{
+        		Object[] data = (Object[])value;
+        		type = (String)data[0];
+        		value = data[1];
+        	}
+            out[i] = new TDNValue(value, stg.parsers().get(type));
         }
         
         return out;

@@ -62,6 +62,7 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 	private float _currAngularV = 0;
 	
 	private float _expectedHeading = 0;
+	private float _targetAngle = 0;
 	
 	private Thread t = new Thread();
 	
@@ -89,6 +90,7 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 		
 		pose = p;
 		_expectedHeading = p.heading;
+		_targetAngle = _expectedHeading;
 		
 		nav = new Navigator(SimRobot.this, SimRobot.this, logger);
 		SimRobot.this.addMoveListener(eventProvider);
@@ -174,7 +176,7 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 				{
 					if(_currLinearV != 0)
 					{
-						float error = _expectedHeading - pose.heading;
+						float error = _targetAngle - pose.heading;
 						movedHeading += error * travelKp * deltaTime;
 					}
 				}
@@ -279,7 +281,17 @@ public class SimRobot implements TDNReceiverListener, RotateMoveController, Runn
 		synchronized (pose)
 		{
 			_expectedHeading = normalizeAng(_expectedHeading);
-			pose.heading = normalizeAng(pose.heading);
+			//pose.heading = normalizeAng(pose.heading);
+			
+            float fullRotationCount = (float)Math.floor(pose.heading / 360);
+            float targetAng = fullRotationCount * 360 + _expectedHeading;
+
+            if (targetAng - pose.heading > 180)
+            	targetAng -= 360;
+            if (targetAng - pose.heading < -180)
+            	targetAng += 360;
+
+            _targetAngle = targetAng;
 			
 			_poseAtMoveStart = pose.copy();
 			_travelled = 0;

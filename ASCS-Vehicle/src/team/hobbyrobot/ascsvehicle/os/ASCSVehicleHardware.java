@@ -55,9 +55,9 @@ public class ASCSVehicleHardware extends GyroRobotHardware
 	private PoseProvider _poseProvider = null;
 	private TDNPoseCorrectionProvider _corrector = null;
 
-	public ASCSVehicleHardware(float wheelDistance, float wheelRadius, boolean reverseLeft, boolean reverseRight)
+	public ASCSVehicleHardware(float wheelDistance, float wheelRadius, float wheelMultiplier, boolean reverseLeft, boolean reverseRight)
 	{
-		super(wheelDistance, wheelRadius, reverseLeft, reverseRight);
+		super(wheelDistance, wheelRadius, wheelMultiplier, reverseLeft, reverseRight);
 		// TODO Auto-generated constructor stub
 	}
 

@@ -15,24 +15,28 @@ import lejos.robotics.navigation.DestinationUnreachableException;
 import lejos.robotics.navigation.Pose;
 import lejos.robotics.navigation.Waypoint;
 import lejos.robotics.pathfinding.Path;
+import team.hobbyrobot.net.api.desktop.StorageNavigator;
 import team.hobbyrobot.robotmodeling.RemoteASCSRobot;
+import team.hobbyrobot.robotobserver.RobotModel;
 
 public class CollisionAvoider
 {
 	private Dimension _size;
 
 	private LineMap _map;
+	private int[] _storageCellTags;
 
 	private DijkstraPathFinder _pathFinder;
 	
 	private double _safeDist;
 
-	public CollisionAvoider(Dimension size, double safeDistance)
+	public CollisionAvoider(Dimension size, double safeDistance, int[] storageCellTags)
 	{
 		_size = size;
 		_map = new LineMap(new Line[] {}, new lejos.robotics.geometry.Rectangle(0, 0, _size.width, _size.height));
 		_pathFinder = new DijkstraPathFinder(_map);
 		_safeDist = safeDistance;
+		_storageCellTags = storageCellTags;
 	}
 
 	public Path getPath(Pose start, Waypoint end, Point2D... robots) throws DestinationUnreachableException
@@ -47,8 +51,10 @@ public class CollisionAvoider
 	}
 	
 	public Path getPath(Pose start, Waypoint end, ArrayList<Line> obstacles) throws DestinationUnreachableException
-	{		
-		_pathFinder.setMap(obstacles);
+	{	
+		ArrayList<Line> staticObstacles = getStaticObstructions();
+		staticObstacles.addAll(obstacles);
+		_pathFinder.setMap(staticObstacles);
 		_pathFinder.lengthenLines((int)_safeDist*2 + 1);
 		Path out = _pathFinder.findRoute(start, end);
 		return out;
@@ -102,7 +108,9 @@ public class CollisionAvoider
 			}
 		}
 		// Update path finder with the current no-go zone
-		_pathFinder.setMap(obstructions);
+		ArrayList<Line> staticObstacles = getStaticObstructions();
+		staticObstacles.addAll(obstructions);
+		_pathFinder.setMap(staticObstacles);
 		_pathFinder.lengthenLines((int)_safeDist*2 + 1);
 
 		// Convert Vectors to starting Pose and destination Waypoint
@@ -293,5 +301,20 @@ public class CollisionAvoider
 	{
 		g.drawLine(x - 5, y - 5, x + 5, y + 5);
 		g.drawLine(x - 5, y + 5, x + 5, y - 5);
+	}
+	
+	public ArrayList<Line> getStaticObstructions()
+	{
+		ArrayList<Line> obstructions = new ArrayList<Line>();
+		for(int tag : _storageCellTags)
+		{
+			RobotModel model = RemoteASCSRobot.globalCorrector.getRobotModel(tag);
+			if(model == null)
+				continue;
+			
+			obstructions.addAll(RemoteASCSRobot.getLinesFromPoints(StorageNavigator.getStorageCellBoundingBox(model.x, model.y, Math.toRadians(model.heading), RemoteASCSRobot.SIZE)));
+		}
+		
+		return obstructions;
 	}
 }

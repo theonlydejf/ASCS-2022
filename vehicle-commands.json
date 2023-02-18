@@ -1,0 +1,44 @@
+{
+    "service-name": "VehicleService",
+    "requests":
+    {
+        "lifterUp":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ ]
+        },
+        "lifterDown":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ ]
+        },
+        "moveLifter":
+        {
+            "params": [ "position" ],
+            "params-types": [ "int" ],
+            "response": [ ]
+        },
+        "beep":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ ]
+        },
+        "forward":
+        {
+            "params": [ "duration" ],
+            "params-types": [ "flt" ],
+            "response": [ ]
+        },
+        "getSamples":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ 
+                "encoder0", "encoder1", "encoder2", "encoder3",
+                "sensor0", "sensor1", "sensor2", "sensor3" ]
+        }
+    }
+}

@@ -15,14 +15,14 @@ import team.hobbyrobot.subos.navigation.CompassPilot;
 import team.hobbyrobot.subos.navigation.LimitablePilot;
 import team.hobbyrobot.subos.navigation.Navigator;
 import team.hobbyrobot.subos.net.RemoteMoveEventProvider;
-import team.hobbyrobot.net.api.Service;
 import team.hobbyrobot.net.api.exceptions.*;
+import team.hobbyrobot.net.api.services.AbstractService;
 import team.hobbyrobot.tdn.base.TDNParsers;
 import team.hobbyrobot.tdn.core.TDNRoot;
 import team.hobbyrobot.tdn.core.TDNValue;
 
 // TODO opravit
-public class MovementService implements Service, MoveListener, NavigationListener
+public class MovementService extends AbstractService implements MoveListener, NavigationListener
 {
 	private ASCSVehicleHardware hardware;
 	private RotateMoveController pilot;
@@ -32,43 +32,13 @@ public class MovementService implements Service, MoveListener, NavigationListene
 	
 	private RemoteMoveEventProvider moveEventProvider;
 
-	Hashtable<String, RequestInvoker> requests = null;
-
 	public MovementService(ASCSVehicleHardware hardware, Logger logger)
 	{
+		super();
 		this.logger = logger.createSubLogger("MvService");
 		this.hardware = hardware;
 		pilot = null;
 		poseProvider = null;
-	}
-
-	@Override
-	public TDNRoot processRequest(String request, TDNRoot params, Socket client)
-		throws UnknownRequestException, RequestParamsException, RequestGeneralException
-	{
-		try
-		{
-			RequestInvoker requestMethod = requests.get(request);			
-			if (requestMethod == null)
-				throw new UnknownRequestException();
-			
-	        requestMethod.client = client;
-
-			return requestMethod.invoke(params);
-		}
-		catch (UnknownRequestException e)
-		{
-			throw e;
-		}
-		catch (RequestParamsException e)
-		{
-			throw e;
-		}
-		catch (Exception e)
-		{
-			throw new RequestGeneralException(
-				"Exception was thrown while performing a request: " + Logger.getExceptionInfo(e));
-		}
 	}
 
 	@Override
@@ -80,13 +50,14 @@ public class MovementService implements Service, MoveListener, NavigationListene
 		poseProvider = hardware.getPoseProvider();
 		navigator = new Navigator(pilot, poseProvider, logger);
 		navigator.addNavigationListener(this);
-
-		initRequests();
+		
+		super.init();
 	}
 
-	private void initRequests()
+	@Override
+	protected Hashtable<String, RequestInvoker> initRequests()
 	{
-		requests = new Hashtable<String, RequestInvoker>()
+		Hashtable<String, RequestInvoker> requests = new Hashtable<String, RequestInvoker>()
 		{
 			/**
 			 * 
@@ -516,15 +487,8 @@ public class MovementService implements Service, MoveListener, NavigationListene
                 });
 			}
 		};
-	}
-
-	private abstract static class RequestInvoker
-	{
-		protected TDNRoot params;
 		
-		protected Socket client;
-		
-		public abstract TDNRoot invoke(TDNRoot params) throws RequestParamsException, RequestGeneralException;
+		return requests;
 	}
 
 	@Override

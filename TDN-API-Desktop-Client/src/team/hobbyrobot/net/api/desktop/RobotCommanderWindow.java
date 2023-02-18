@@ -3,8 +3,11 @@ package team.hobbyrobot.net.api.desktop;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,14 +40,17 @@ import team.hobbyrobot.robotmodeling.RemoteASCSRobotListener;
 import team.hobbyrobot.tdn.base.TDNParsers;
 import team.hobbyrobot.tdn.core.TDNRoot;
 import team.hobbyrobot.tdn.core.TDNValue;
+import java.util.ArrayList;
 
 public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListener
 {
 	private RemoteASCSRobot _robot;
-	private JLabel _eventLbl;
+	private ArrayList<TDNRoot> _eventsData = new ArrayList<TDNRoot>();
+	private DefaultListModel<String> _eventNames = null;
+	private JList<String> _eventList;
 	private Thread _rmLogReaderThread;
 
-	public static void main(String[] args) throws UnknownHostException, IOException
+	/*public static void main(String[] args) throws UnknownHostException, IOException
 	{
 		Logger l = new Logger();
 		l.registerEndpoint(new PrintWriter(System.out));
@@ -73,7 +79,7 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 		RemoteASCSRobot.initEventListenerServer(5555, l);
 		RobotCommanderWindow w = new RobotCommanderWindow(new RemoteASCSRobot(0, "localhost", 1111, 2222, 3333, l));
 		w.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-	}
+	}*/
 
 	public RobotCommanderWindow(RemoteASCSRobot robot)
 	{
@@ -103,6 +109,7 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 			}
 		});
 
+		JPanel top = new JPanel(new FlowLayout());
 		JPanel createCmdPanel = new JPanel(new FlowLayout());
 		createCmdPanel.setLayout(new BoxLayout(createCmdPanel, BoxLayout.Y_AXIS));
 		createCmdPanel.setBorder(new CompoundBorder(
@@ -122,6 +129,11 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 		{
 			Request rqst = RemoteASCSRobot.moveRequests.get(cmdTxt.getText());
 			if(rqst == null)
+				rqst = RemoteASCSRobot.osRequests.get(cmdTxt.getText());
+			if(rqst == null)
+				rqst = RemoteASCSRobot.vehicleRequests.get(cmdTxt.getText());
+			
+			if(rqst == null)
 			{
 				JOptionPane.showMessageDialog(null, "Unknown request", "Unknown request",
 					JOptionPane.ERROR_MESSAGE);
@@ -133,11 +145,17 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 			{
 				try
 				{
-					String str = JOptionPane.showInputDialog( "{" + rqst.paramTypes[i] + "} " + rqst.params[i]);
+					String type = rqst.paramTypes[i];
+					if(type.equals("any"))
+						type = JOptionPane.showInputDialog("Entery type key of the value:");
+					if(type == null || type.length() <= 0)
+						return;
+					
+					String str = JOptionPane.showInputDialog("{" + rqst.paramTypes[i] + "} " + rqst.params[i]);
 					if(str == null || str.length() <= 0)
 						return;
 					
-					switch (rqst.paramTypes[i])
+					switch (type)
 					{
 						case "flt":
 							params[i] = Float.parseFloat(str);
@@ -155,10 +173,15 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 							params[i] = str;
 							break;
 					}
+					
+					if(rqst.paramTypes[i].equals("any"))
+					{
+						params[i] = new Object[] { type, params[i] };
+					}
 				}
 				catch(NumberFormatException e)
 				{
-					JOptionPane.showMessageDialog(null, "You need to enter a number", "Not a number",
+					JOptionPane.showMessageDialog(null, "You need to enter a valid number", "Not a number",
 						JOptionPane.WARNING_MESSAGE);
 					i--;
 				}
@@ -174,6 +197,7 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 			try
 			{
 				TDNRoot response = _robot.api.rawRequest(cmd);
+				System.out.println(response.toString());
 
 				JOptionPane.showMessageDialog(this, response.toString(), "Response", JOptionPane.PLAIN_MESSAGE);
 			}
@@ -186,12 +210,32 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 		sendBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
 		createCmdPanel.add(sendBtn);
 
-		getContentPane().add(createCmdPanel);
+		top.add(createCmdPanel);
 		
-		_eventLbl = new JLabel("No last event");
-		_eventLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
-		getContentPane().add(_eventLbl);
-
+		JTextArea poseInfoTxt = new JTextArea();
+		poseInfoTxt.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
+		poseInfoTxt.setEditable(false);
+		poseInfoTxt.setPreferredSize(new Dimension(100, 150));
+		top.add(poseInfoTxt);
+		
+		_eventNames = new DefaultListModel<String>();
+		_eventList = new JList<String>(_eventNames);
+		_eventList.setAlignmentX(Component.CENTER_ALIGNMENT);
+		_eventList.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
+		_eventList.addMouseListener(new MouseAdapter() {
+		    public void mouseClicked(MouseEvent evt) {
+		        if (evt.getClickCount() == 2) 
+		        {
+		            int index = _eventList.locationToIndex(evt.getPoint());
+					JOptionPane.showMessageDialog(RobotCommanderWindow.this, "Data received with event " + _eventNames.getElementAt(index) + ":\n" + _eventsData.get(index).toString(), "Event Info", JOptionPane.PLAIN_MESSAGE);
+		        }
+		    }
+		});
+		JScrollPane eventListSP = new JScrollPane(_eventList);
+		eventListSP.setPreferredSize(new Dimension(120, 150));
+		top.add(eventListSP);
+		getContentPane().add(top);
+		
 		JPanel loggerPanel = new JPanel();
 		loggerPanel.setLayout(new BoxLayout(loggerPanel, BoxLayout.Y_AXIS));
 		loggerPanel.setBorder(
@@ -252,7 +296,18 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 	@Override
 	public void eventReceived(String name, TDNRoot params, Socket client)
 	{
-		_eventLbl.setText("Last event: " + name);
+		_eventNames.addElement(name);
+		_eventsData.add(params);
+		if(_eventNames.size() > 15)
+		{
+			_eventNames.remove(0);
+			_eventsData.remove(0);
+		}
+		
+		int lastIndex = _eventNames.getSize() - 1;
+		if (lastIndex >= 0) {
+		   _eventList.ensureIndexIsVisible(lastIndex);
+		}
 	}
 
 	@Override

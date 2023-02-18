@@ -18,13 +18,14 @@ public class SimWindow extends JFrame implements MoveListener
 	
 	private SimRobotViewer _robotViewer;
 	private LinkedList<SimRobot> _robots = new LinkedList<SimRobot>();
+	private LinkedList<StorageCell> _storageCells = new LinkedList<StorageCell>();
 
 	public static void main(String[] args) throws IOException
 	{
 		//planeWidth = 2360l;
 		//planeHeight = 1140l;
 		
-		args = "2360 1140 2111,2222,2333,970,570,90 3111,3222,3333,1390,570,90".split("\\s");
+		//args = "2360 1140 2111,2222,2333,970,570,90 3111,3222,3333,1390,570,90".split("\\s");
 		
 		planeWidth = Long.parseLong(args[0]);
 		planeHeight = Long.parseLong(args[1]);
@@ -34,6 +35,18 @@ public class SimWindow extends JFrame implements MoveListener
 		for(int i = 2; i < args.length; i++)
 		{
 			String[] data = args[i].split(",");
+			if(data[0].toLowerCase().equals("cell"))
+			{
+				int id = Integer.parseInt(data[1]);
+				float x = Float.parseFloat(data[2]);
+				float y = Float.parseFloat(data[3]);
+				float h = Float.parseFloat(data[4]);
+				
+				w._storageCells.add(new StorageCell(new Pose(x, y, h), id));
+				
+				continue;
+			}
+			
 			int logger = Integer.parseInt(data[0]);
 			int api = Integer.parseInt(data[1]);
 			int corrector = Integer.parseInt(data[2]);
@@ -47,7 +60,7 @@ public class SimWindow extends JFrame implements MoveListener
 			robot.addMoveListener(w);
 			w._robots.add(robot);
 		}
-				
+		
 		/*SimRobot robot1 = new SimRobot(2111, 2222, 2333);
 		robot1.pose = new Pose((int)planeWidth/2-100, (int)planeHeight/2, 90);
 		robot1.addMoveListener(w);
@@ -61,7 +74,7 @@ public class SimWindow extends JFrame implements MoveListener
 
 	public SimWindow() throws IOException
 	{
-		SimBridge bridgeServer = new SimBridge(_robots, 1111);
+		SimBridge bridgeServer = new SimBridge(_robots, _storageCells, 1111);
 		bridgeServer.start();
 
 		setLayout(new BorderLayout());
@@ -71,7 +84,7 @@ public class SimWindow extends JFrame implements MoveListener
 
 		int robotViewerWidth = 500;
 
-		_robotViewer = new SimRobotViewer(_robots, planeWidth);
+		_robotViewer = new SimRobotViewer(_robots, _storageCells, planeWidth);
 		_robotViewer.setPreferredSize(
 			new Dimension(robotViewerWidth, (int) ((robotViewerWidth / (float) planeWidth) * planeHeight)));
 

@@ -653,6 +653,6 @@ public class PID
 		if (!Double.isNaN(errorSum))
 			this.errorSum = errorSum;
 		else
-			SubOSController.mainLogger.log("ErrorSum is NaN!");
+			SubOSController.mainLogger.log("PID: ErrorSum is NaN!");
 	}
 }

@@ -58,16 +58,14 @@ public class RobotCorrector implements RobotObserverListener
             synchronized(_targetTableLock)
             {
                 int robotID = (int)(long)robotJSON.get("id");
-                if(_targetedRobots.containsKey(robotID))
-                    robot = _targetedRobots.get(robotID);
-            }
-            
-            if(robot == null)
-                continue;
-            
-            synchronized(_modelTableLock)
-            {
-                _robotModels.put(robot.id, model);
+                synchronized(_modelTableLock)
+                {
+                	_robotModels.put(robotID, model);
+                }
+                
+                robot = _targetedRobots.get(robotID);
+                if(!_targetedRobots.containsKey(robotID))
+                	continue;
             }
             
             correctRobot(robot, model);

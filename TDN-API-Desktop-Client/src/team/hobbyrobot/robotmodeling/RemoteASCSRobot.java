@@ -38,6 +38,7 @@ import team.hobbyrobot.tdn.base.TDNArray;
 import team.hobbyrobot.tdn.base.TDNParsers;
 import team.hobbyrobot.tdn.core.TDNRoot;
 import team.hobbyrobot.tdn.core.TDNValue;
+import team.hobbyrobot.utils.ProgressReporter;
 
 /**
  * Class that ensures connection with an ASCS Vehicle.
@@ -66,12 +67,16 @@ public class RemoteASCSRobot implements Closeable
 	private static RobotEventListener _robotEventListener;
 	/** Map, which stores all of the movement requests, which are available on the robot */
 	public static Map<String, Request> moveRequests;
+	public static Map<String, Request> osRequests;
+	public static Map<String, Request> vehicleRequests;
 
 	static
 	{
 		try
 		{
 			moveRequests = RequestGenerator.loadRequests("/Users/david/Documents/MAP/movement-vehicle-commands.json");
+			osRequests = RequestGenerator.loadRequests("/Users/david/Documents/MAP/os-commands.json");
+			vehicleRequests = RequestGenerator.loadRequests("/Users/david/Documents/MAP/vehicle-commands.json");
 		}
 		catch (IOException e)
 		{
@@ -308,6 +313,18 @@ public class RemoteASCSRobot implements Closeable
 
 		public static final Request REGISTER_MOVE_LISTENER;
 
+		
+		public static final Request GET_RESOURCES;
+		public static final Request GET_RESOURCE;
+		public static final Request SET_RESOURCE;
+		
+		public static final Request LIFTER_UP;
+		public static final Request LIFTER_DOWN;
+		public static final Request MOVE_LIFTER;
+		public static final Request FORWARD;
+		public static final Request BEEP;
+		public static final Request GET_SAMPLES;
+		
 		static
 		{
 			// @formatter:off
@@ -331,6 +348,18 @@ public class RemoteASCSRobot implements Closeable
 			SET_EXPECTED_HEADING = 		moveRequests.get("setExpectedHeading");
 			GET_EXPECTED_HEADING = 		moveRequests.get("getExpectedHeading");
 			REGISTER_MOVE_LISTENER = 	moveRequests.get("registerMoveListener");
+			
+			GET_RESOURCES =				osRequests.get("getResources");
+			GET_RESOURCE =				osRequests.get("getResource");
+			SET_RESOURCE =				osRequests.get("setResource");
+			
+			LIFTER_UP =					vehicleRequests.get("lifterUp");
+			LIFTER_DOWN =				vehicleRequests.get("lifterDown");
+			MOVE_LIFTER =				vehicleRequests.get("moveLifter");
+			FORWARD =					vehicleRequests.get("forward");
+			BEEP =						vehicleRequests.get("beep");
+			GET_SAMPLES =				vehicleRequests.get("getSamples");
+
 			// @formatter:on
 		}
 	}
@@ -520,26 +549,54 @@ public class RemoteASCSRobot implements Closeable
 	public RemoteASCSRobot(int id, String ip, int loggerPort, int apiPort, int correctorPort, Logger localLogger)
 		throws UnknownHostException, IOException
 	{
+		this(id, ip, loggerPort, apiPort, correctorPort, localLogger, null);
+	}
+	
+	public RemoteASCSRobot(int id, String ip, int loggerPort, int apiPort, int correctorPort, Logger localLogger, ProgressReporter reporter)
+		throws UnknownHostException, IOException
+	{
 		_id = id;
 
 		synchronized (_robots)
 		{
 			// Check if remote event listener server has started
-			if (eventServer == null)
-				throw new RuntimeException(
-					"Instance of robot couldn't be created. Remote event listener server hasn't started yet!");
+			//if (eventServer == null)
+			//	throw new RuntimeException(
+			//		"Instance of robot couldn't be created. Remote event listener server hasn't started yet!");
 			// Check if a robot with the same id isn't registered yet
 			if (_robots.containsKey(id))
+			{
+				if(reporter != null)
+					reporter.setDone();
 				throw new RuntimeException("Robot with id " + id + " is already registered");
-
+			}
+			
 			if (localLogger == null)
 				_localLogger = new Logger();
 			else
 				_localLogger = localLogger.createSubLogger("Robot_" + id);
 
 			// Connect to the robot
+			if(reporter != null)
+			{
+				reporter.setProgress(0);
+				reporter.setMessage("Connecting logger");
+				reporter.setReportChanged();
+			}
 			remoteLog = new Socket(ip, loggerPort);
+			if(reporter != null)
+			{
+				reporter.setProgress(20);
+				reporter.setMessage("Connecting API");
+				reporter.setReportChanged();
+			}
 			api = new TDNAPIClient(ip, apiPort, _localLogger.createSubLogger("API"));
+			if(reporter != null)
+			{
+				reporter.setProgress(40);
+				reporter.setMessage("Connecting corrector");
+				reporter.setReportChanged();
+			}
 			corrector = new TDNSender(ip, correctorPort);
 
 			try
@@ -551,12 +608,34 @@ public class RemoteASCSRobot implements Closeable
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			
+			if(reporter != null)
+			{
+				reporter.setProgress(60);
+				reporter.setMessage("Starting corrector");
+				reporter.setReportChanged();
+			}
+			if(globalCorrector != null)
+				globalCorrector.startCorrectingRobot(corrector, getID());
+			else
+				System.err.println("Robot " + id + " is not being corrected!");
 
-			globalCorrector.startCorrectingRobot(corrector, getID());
-
+			if (eventServer == null)
+			{
+				System.err.println("Robot " + id + " has no event server connected!");
+				if(reporter != null)
+					reporter.setDone();
+				return;
+			}
+			
 			//
 			// Start listening for move events from the robot
-
+			if(reporter != null)
+			{
+				reporter.setProgress(80);//TODO
+				reporter.setMessage("Registering move listener");
+				reporter.setReportChanged();
+			}
 			// Create params of the connect request
 			TDNValue portTDNValue = new TDNValue(eventServer.getPort(), TDNParsers.INTEGER);
 			TDNValue idTDNValue = new TDNValue(_id, TDNParsers.INTEGER);
@@ -566,6 +645,12 @@ public class RemoteASCSRobot implements Closeable
 			TDNRoot responseTDN = api.rawRequest(connectEventRqst);
 			Response response = new Response(responseTDN);
 
+			if(reporter != null)
+			{
+				reporter.setProgress(100);
+				reporter.setReportChanged();
+				reporter.setDone();
+			}
 			// If connecting to remote event provider was successful -> create instance
 			if (response.wasRequestSuccessful())
 			{
@@ -590,7 +675,7 @@ public class RemoteASCSRobot implements Closeable
 		return _id;
 	}
 
-	public Point2D[] getBoudningBox(double padding)
+	public Point2D[] getBoudingBox(double padding)
 	{
 		RobotModel model = globalCorrector.getRobotModel(getID());
 		return getRobotBoundingBox(padding, model.x, model.y);

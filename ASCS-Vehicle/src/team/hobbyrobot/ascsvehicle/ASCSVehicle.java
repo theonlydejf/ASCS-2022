@@ -23,6 +23,7 @@ import lejos.robotics.navigation.RotateMoveController;
 import lejos.utility.Delay;
 import team.hobbyrobot.ascsvehicle.api.services.MovementService;
 import team.hobbyrobot.ascsvehicle.api.services.TestService;
+import team.hobbyrobot.ascsvehicle.api.services.VehicleService;
 import team.hobbyrobot.ascsvehicle.navigation.TDNPoseCorrectionProvider;
 import team.hobbyrobot.ascsvehicle.navigation.TDNPoseCorrectionProviderListener;
 import team.hobbyrobot.ascsvehicle.os.APIStaticFactory;
@@ -45,6 +46,7 @@ import team.hobbyrobot.subos.menu.MenuScreen;
 import team.hobbyrobot.subos.menu.RobotInfoScreen;
 import team.hobbyrobot.subos.navigation.CorrectablePoseProvider;
 import team.hobbyrobot.subos.navigation.PoseCorrectionProvider;
+import team.hobbyrobot.subos.net.OSService;
 import team.hobbyrobot.net.api.TDNAPIServer;
 import team.hobbyrobot.tdn.base.*;
 import team.hobbyrobot.tdn.core.*;
@@ -59,7 +61,7 @@ public class ASCSVehicle implements TDNPoseCorrectionProviderListener
 	//@formatter:on
 
 	/**  Inicializovany Hardware robota */
-	public static ASCSVehicleHardware Hardware = new ASCSVehicleHardware(111.7f, 56f / 2f, true, false);
+	public static ASCSVehicleHardware Hardware = new ASCSVehicleHardware(111.7f, 56f / 2f, 3f / 5f, true, false);
 	/** Inicializovany InfoBar, ktery aktualne bezi */
 	public static BasicInfoBar InfoBar = null;
 
@@ -156,7 +158,9 @@ public class ASCSVehicle implements TDNPoseCorrectionProviderListener
 		APIStaticFactory.settings.setStartServer(true);
 		APIStaticFactory.settings.setStartRegisteringClients(true);
 		APIStaticFactory.queueService("TestService", new TestService());
+		APIStaticFactory.queueService("OSService", new OSService());
 		APIStaticFactory.queueService("MovementService", new MovementService(Hardware, logger));
+		APIStaticFactory.queueService("VehicleService", new VehicleService(Hardware));
 		
 		// Calibrate robot
 		new LoadingScreen("Init vehicle",

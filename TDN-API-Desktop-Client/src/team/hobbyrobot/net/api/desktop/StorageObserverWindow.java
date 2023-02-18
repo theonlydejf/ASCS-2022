@@ -5,6 +5,7 @@ import java.awt.Dimension;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -53,7 +54,7 @@ public class StorageObserverWindow extends JFrame
         RobotCorrector corrector = new RobotCorrector(observer);
         _tdnSender = new TDNSender("localhost", 3333);
         _robotViewer = new PaintPanel();
-        _robotViewerGraphics = new RobotViewerGraphics(observer, _robotViewer, 2340);
+        _robotViewerGraphics = new RobotViewerGraphics(null, observer, _robotViewer, 2340);
 
         JButton btn = new JButton();
         btn.setLocation(0,  0);

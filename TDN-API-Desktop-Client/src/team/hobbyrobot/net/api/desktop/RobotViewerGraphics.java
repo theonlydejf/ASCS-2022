@@ -5,6 +5,8 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.util.List;
+import java.util.Map;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -33,13 +35,16 @@ public class RobotViewerGraphics implements Paintable, RobotObserverListener
 	private double _scale = 1;
 	private double _realWidth;
 	private PaintPanel _paintPanel;
+	
+	private StorageNavigator _storageNavigator;
 
-	public RobotViewerGraphics(RobotObserver observer, PaintPanel parent, double realWidth)
+	public RobotViewerGraphics(StorageNavigator storageNavigator, RobotObserver observer, PaintPanel parent, double realWidth)
 	{
 		super();
 		_realWidth = realWidth;
 		observer.addListener(this);
 		_paintPanel = parent;
+		_storageNavigator = storageNavigator;
 	}
 
 	@Override
@@ -53,12 +58,24 @@ public class RobotViewerGraphics implements Paintable, RobotObserverListener
 				new Rectangle(0, 0, _paintPanel.getWidth(), _paintPanel.getHeight()), errFont, Color.red);
 			return;
 		}
+		Map<Integer, Integer> storageCellTagIdMap = _storageNavigator.getCellTagIDMap();
 		synchronized (_robotsLock)
 		{
 			// Draw bounding boxes
 			for (Object obj : _robots)
 			{
 				JSONObject robot = (JSONObject) obj;
+				long id = (long) robot.get("id");
+
+				if(storageCellTagIdMap.containsKey((int)id))
+				{
+					for(Line l : PathPerformer.collisionAvoider.getStaticObstructions())
+					{
+						g.drawLine((int)(l.x1 * _scale), (int)(l.y1 * _scale), (int)(l.x2 * _scale), (int)(l.y2 * _scale));
+					}
+					continue;
+				}
+				
 				double x = (double) robot.get("x");
 				double y = (double) robot.get("y");
 
@@ -94,19 +111,27 @@ public class RobotViewerGraphics implements Paintable, RobotObserverListener
 
 				double heading_rad = heading / 180 * Math.PI;
 				
-				// Draw size of the robot
-				g.setColor(Color.gray);
-				double robotSize = RemoteASCSRobot.SIZE * _scale;
-				g.drawLine((int)(x-robotSize), (int)(y-robotSize), (int)(x+robotSize), (int)(y-robotSize));
-				g.drawLine((int)(x+robotSize), (int)(y-robotSize), (int)(x+robotSize), (int)(y+robotSize));
-				g.drawLine((int)(x+robotSize), (int)(y+robotSize), (int)(x-robotSize), (int)(y+robotSize));
-				g.drawLine((int)(x-robotSize), (int)(y+robotSize), (int)(x-robotSize), (int)(y-robotSize));
-				
-				g.setColor(transparentGray);
-				g.fillOval((int)(x-robotSize), (int)(y-robotSize), (int)(robotSize*2), (int)(robotSize*2));
+				if(storageCellTagIdMap.containsKey((int)id))
+				{
+					g.setColor(Color.blue);
+					id = storageCellTagIdMap.get((int)id);
+				}
+				else
+				{
+					// Draw size of the robot
+					g.setColor(Color.gray);
+					double robotSize = RemoteASCSRobot.SIZE * _scale;
+					g.drawLine((int)(x-robotSize), (int)(y-robotSize), (int)(x+robotSize), (int)(y-robotSize));
+					g.drawLine((int)(x+robotSize), (int)(y-robotSize), (int)(x+robotSize), (int)(y+robotSize));
+					g.drawLine((int)(x+robotSize), (int)(y+robotSize), (int)(x-robotSize), (int)(y+robotSize));
+					g.drawLine((int)(x-robotSize), (int)(y+robotSize), (int)(x-robotSize), (int)(y-robotSize));
+					
+					g.setColor(transparentGray);
+					g.fillOval((int)(x-robotSize), (int)(y-robotSize), (int)(robotSize*2), (int)(robotSize*2));
+					g.setColor(Color.black);
+				}
 				
 				// Draw pose of the robot
-				g.setColor(Color.black);
 				g.fillOval((int) (x - 5), (int) (y - 5), 10, 10);
 				g.drawLine((int) x, (int) y, (int) (x + 20 * Math.cos(heading_rad)),
 					(int) (y + 20 * Math.sin(heading_rad)));

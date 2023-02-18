@@ -31,5 +31,10 @@ public class TDNValue
     	TDNArray tdnArr = (TDNArray)value.value;
     	return tdnArr.asList();
     }
+    
+    public String toString()
+    {
+    	return "{" + parser.typeKey() + "} " + value;
+    }
     //((TDNArray)value.Value).Value.Select(x => (T)x.Value).ToArray();
 }

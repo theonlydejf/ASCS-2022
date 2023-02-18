@@ -30,6 +30,7 @@ public abstract class RobotHardware
 	/** KONSTANTA - Polomer kol */
 	@IncludeInRobotInfo
 	public float WheelRadius = -1f;
+	public float WheelMultiplier = -1f;
 	/** KONSTANTA - Touto konstantou jsou vynasobeny vsechny vzdalenosti ktere robot ujel */
 	@IncludeInRobotInfo
 	public float DistanceMultiplyer;
@@ -50,7 +51,7 @@ public abstract class RobotHardware
 	
 	public float getDistanceMultiplier()
 	{
-		return WheelRadius * (float)Math.PI * 2;
+		return WheelRadius * (float)Math.PI * 2 * WheelMultiplier;
 	}
 	
 	public int getLeftMotorDirection()
@@ -109,12 +110,13 @@ public abstract class RobotHardware
 	/** Promenna do ve ktere je ulozena instance RobotHardware, ktera se bude pouzivat */
 	public static RobotHardware RobotHardwareToInitialize;
 
-	public RobotHardware(float wheelDistance, float wheelRadius, boolean reverseLeft, boolean reverseRight)
+	public RobotHardware(float wheelDistance, float wheelRadius, float wheelMultiplier, boolean reverseLeft, boolean reverseRight)
 	{
 		ReverseLeftMotor = reverseLeft;
 		ReverseRightMotor = reverseRight;
 		WheelDistance = wheelDistance;
 		WheelRadius = wheelRadius;
+		WheelMultiplier = wheelMultiplier;
 		DistanceMultiplyer = getDistanceMultiplier();
 		RobotHardwareToInitialize = this;
 		

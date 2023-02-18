@@ -55,9 +55,11 @@ import team.hobbyrobot.robotmodeling.*;
 import team.hobbyrobot.robotobserver.RobotCorrector;
 import team.hobbyrobot.robotobserver.RobotModel;
 import team.hobbyrobot.robotobserver.RobotObserver;
+import team.hobbyrobot.subos.Referenceable;
 import team.hobbyrobot.tdn.base.TDNParsers;
 import team.hobbyrobot.tdn.core.TDNRoot;
 import team.hobbyrobot.tdn.core.TDNValue;
+import team.hobbyrobot.utils.ProgressReporter;
 
 public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 {
@@ -68,6 +70,8 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 	public LinkedList<RemoteASCSRobot> robots = new LinkedList<>();
 	private boolean _recordingPath = false;
 	private Path _recordedPath = new Path();
+	
+	private StorageNavigator storageNavigator;
 
 	private int planeWidth, planeHeight;
 
@@ -135,32 +139,46 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		connectDefaultBtn.setAlignmentX(CENTER_ALIGNMENT);
 		connectDefaultBtn.addActionListener(e ->
 		{
-			JSONArray arr = (JSONArray) settings.get("vehicles");
-			StringBuilder exceptionDetails = new StringBuilder();
-			for (Object o : arr)
+			Thread t = new Thread()
 			{
-				int id = -1;
-				try
+				@Override
+				public void run()
 				{
-					JSONObject json = (JSONObject) o;
-					id = (int) (long) json.get("id");
-					String ip = (String) json.get("ip");
-					int loggerPort = (int) (long) json.get("logger-port");
-					int apiPort = (int) (long) json.get("api-port");
-					int correctorPort = (int) (long) json.get("pose-corrector-port");
-					connectRobot(id, ip, loggerPort, apiPort, correctorPort);
+					connectDefaultBtn.setEnabled(false);
+					JSONArray arr = (JSONArray) settings.get("vehicles");
+					StringBuilder exceptionDetails = new StringBuilder();
+					for (Object o : arr)
+					{
+						int id = -1;
+						try
+						{
+							JSONObject json = (JSONObject) o;
+							id = (int) (long) json.get("id");
+							String ip = (String) json.get("ip");
+							int loggerPort = (int) (long) json.get("logger-port");
+							int apiPort = (int) (long) json.get("api-port");
+							int correctorPort = (int) (long) json.get("pose-corrector-port");
+							ProgressReporter reporter = connectRobot(id, ip, loggerPort, apiPort, correctorPort);
+							ProgressWindow progressWin = new ProgressWindow("Connecting robot " + id, reporter);
+							progressWin.setAlwaysOnTop(true);
+							progressWin.requestFocus();
+							while(!reporter.isDone()) Thread.yield();
+						}
+						catch(Exception ex)
+						{
+							exceptionDetails.append("Exception on robot " + id + ": ");
+							exceptionDetails.append(ex.getMessage());
+							exceptionDetails.append("\n");
+						}
+					}
+					
+					if(exceptionDetails.length() > 0)
+						JOptionPane.showMessageDialog(null, exceptionDetails.toString(), "Error",
+							JOptionPane.ERROR_MESSAGE);
+					connectDefaultBtn.setEnabled(true);
 				}
-				catch(Exception ex)
-				{
-					exceptionDetails.append("Exception on robot " + id + ": ");
-					exceptionDetails.append(ex.getMessage());
-					exceptionDetails.append("\n");
-				}
-			}
-			
-			if(exceptionDetails.length() > 0)
-				JOptionPane.showMessageDialog(null, exceptionDetails.toString(), "Error",
-					JOptionPane.ERROR_MESSAGE);
+			};
+			t.start();
 		});
 		robotConnectionPanel.add(connectDefaultBtn);
 
@@ -205,9 +223,22 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 				int loggerPort = Integer.parseInt(loggerPortTxt.getText());
 				int apiPort = Integer.parseInt(apiPortTxt.getText());
 				int correctorPort = Integer.parseInt(correctorPortTxt.getText());
-				connectRobot(id, ip, loggerPort, apiPort, correctorPort);
-				JOptionPane.showMessageDialog(commanderWindows.getLast(), "Connected to " + ip + ":" + apiPort, "Success",
-					JOptionPane.INFORMATION_MESSAGE);
+				ProgressReporter reporter = connectRobot(id, ip, loggerPort, apiPort, correctorPort);
+				ProgressWindow progressWin = new ProgressWindow("Connecting robot " + id, reporter);
+				progressWin.setAlwaysOnTop(true);
+				progressWin.requestFocus();
+				Thread t = new Thread() 
+				{
+					@Override
+					public void run()
+					{
+						connectBtn.setEnabled(false);
+						while(!reporter.isDone()) 
+							Thread.yield();
+						connectBtn.setEnabled(true);
+					}
+				};
+				t.start();
 			}
 			catch(NumberFormatException ex)
 			{
@@ -238,7 +269,11 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		planeWidth = (int) (long) planeSettings.get("width");
 		planeHeight = (int) (long) planeSettings.get("height");
 		int robotViewerWidth = 500;
-		PathPerformer.initCollisionAvoider(planeWidth, planeHeight);
+		
+		JSONArray storageCellIds = (JSONArray) settings.get("storage-cell-ids");
+		storageNavigator = new StorageNavigator(storageCellIds);
+		
+		PathPerformer.initCollisionAvoider(planeWidth, planeHeight, storageNavigator.getCellTags());
 
 		JPanel robotViewerParent = new JPanel();
 		robotViewerParent.setLayout(new GridLayout(0, 1));
@@ -250,7 +285,7 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		robotViewer.setPreferredSize(
 			new Dimension(robotViewerWidth, (int) ((robotViewerWidth / (float) planeWidth) * planeHeight)));
 		robotViewer.setBorder(new DashedBorder());
-		RobotViewerGraphics robotGraphics = new RobotViewerGraphics(observer, robotViewer, planeWidth);
+		RobotViewerGraphics robotGraphics = new RobotViewerGraphics(storageNavigator, observer, robotViewer, planeWidth);
 		robotViewer.addLayer(robotGraphics);
 
 		robotViewer.addLayer(new PathPerformer.PathGraphics(robotViewer, planeWidth));
@@ -337,6 +372,87 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		});
 		getContentPane().add(calibrateDeltaABtn);
 
+		JPanel storageControlPanel = new JPanel();
+		storageControlPanel.setBorder(new CompoundBorder(new EmptyBorder(10, 10, 10, 10),
+			BorderFactory.createTitledBorder("Storage control")));
+		Box box = new Box(BoxLayout.X_AXIS);
+		box.add(Box.createHorizontalGlue());
+		JTextField cellIDTxt = new JTextField();
+		cellIDTxt.setColumns(3);
+		JButton takeBtn = new JButton("Take from");
+		takeBtn.addActionListener(e ->
+		{
+			Thread t = new Thread(() ->
+			{
+				try
+				{
+					int id = 0;
+					try
+					{
+						id = Integer.parseInt(cellIDTxt.getText());
+					}
+					catch (NumberFormatException ex)
+					{
+						JOptionPane.showMessageDialog(null, cellIDTxt.getText() + " is not a number!", "Not a number",
+							JOptionPane.ERROR_MESSAGE);
+						return;
+					}
+					if(!storageNavigator.takeItemFrom(id))
+					{
+						JOptionPane.showMessageDialog(null, "Taking item from cell " + id + " failed!", "Action failed",
+							JOptionPane.ERROR_MESSAGE);
+					}
+				}
+				catch (IOException ex)
+				{
+					JOptionPane.showMessageDialog(null, ex.toString(), "Exception during storage control",
+						JOptionPane.ERROR_MESSAGE);
+				}
+			});
+			t.setPriority(Thread.MIN_PRIORITY);
+			t.start();
+		});
+		box.add(takeBtn);
+		JButton putBtn = new JButton("Put to");
+		takeBtn.addActionListener(e ->
+		{
+			Thread t = new Thread(() ->
+			{
+				try
+				{
+					int id = 0;
+					try
+					{
+						id = Integer.parseInt(cellIDTxt.getText());
+					}
+					catch (NumberFormatException ex)
+					{
+						JOptionPane.showMessageDialog(null, cellIDTxt.getText() + " is not a number!", "Not a number",
+							JOptionPane.ERROR_MESSAGE);
+						return;
+					}
+					if(!storageNavigator.putItemTo(id))
+					{
+						JOptionPane.showMessageDialog(null, "Putting item to cell " + id + " failed!", "Action failed",
+							JOptionPane.ERROR_MESSAGE);
+					}
+				}
+				catch (IOException ex)
+				{
+					JOptionPane.showMessageDialog(null, ex.toString(), "Exception during storage control",
+						JOptionPane.ERROR_MESSAGE);
+				}
+			});
+			t.setPriority(Thread.MIN_PRIORITY);
+			t.start();
+		});
+		box.add(putBtn);
+		box.add(cellIDTxt);
+		box.add(Box.createHorizontalGlue());
+		
+		storageControlPanel.add(box);
+		getContentPane().add(storageControlPanel);
+		
 		JButton testBtn = new JButton("Start Test");
 		testBtn.addActionListener(e ->
 		{
@@ -355,6 +471,7 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 			t.setPriority(Thread.MIN_PRIORITY);
 			t.start();
 		});
+		
 		getContentPane().add(testBtn);
 		pack();
 
@@ -363,12 +480,43 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		setVisible(true);
 	}
 
-	private void connectRobot(int id, String ip, int loggerPort, int apiPort, int correctorPort) throws UnknownHostException, IOException
+	private ProgressReporter connectRobot(int id, String ip, int loggerPort, int apiPort, int correctorPort)
+		throws UnknownHostException, IOException
 	{
-		RemoteASCSRobot robot = new RemoteASCSRobot(id, ip, loggerPort, apiPort, correctorPort, _logger);
+		ProgressReporter reporter = new ProgressReporter();
 
-		commanderWindows.add(new RobotCommanderWindow(robot));
-		robots.add(robot);
+		Thread t = new Thread()
+		{
+			@Override
+			public void run()
+			{
+				RemoteASCSRobot robot;
+				try
+				{
+					robot = new RemoteASCSRobot(id, ip, loggerPort, apiPort, correctorPort, _logger, reporter);
+
+					commanderWindows.add(new RobotCommanderWindow(robot));
+					robots.add(robot);
+				}
+				catch (UnknownHostException e)
+				{
+					JOptionPane.showMessageDialog(null, "Unknown host error: " + e.getMessage(), "Error",
+						JOptionPane.ERROR_MESSAGE);
+				}
+				catch (IOException e)
+				{
+					JOptionPane.showMessageDialog(null, "General exception when connecting to robot: " + e.getMessage(),
+						"Error", JOptionPane.ERROR_MESSAGE);
+				}
+				catch (RuntimeException e)
+				{
+					JOptionPane.showMessageDialog(null, "General exception when connecting to robot: " + e.getMessage(),
+						"Error", JOptionPane.ERROR_MESSAGE);
+				}
+			}
+		};
+		t.start();
+		return reporter;
 	}
 
 	private void sendPath()
@@ -404,26 +552,56 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		}
 	}
 
+	Thread navigatorThread = null;
 	public void performTest() throws IOException, InterruptedException
 	{
-		RemoteASCSRobot.getRobot(5).api.rawRequest(RemoteASCSRobot.Requests.RESET_GYRO_AT.toTDN(new TDNValue(0f, TDNParsers.FLOAT)));
+		//RemoteASCSRobot.getRobot(5).api.rawRequest(RemoteASCSRobot.Requests.RESET_GYRO_AT.toTDN(new TDNValue(0f, TDNParsers.FLOAT)));
 		//Path path = new Path();
 		//path.add(new Waypoint(300, 300, 90));
 		//new PathPerformer(path, 5);
+		
+		if(navigatorThread != null)
+		{
+			navigatorThread.interrupt();
+			RemoteASCSRobot.getRobot(5).api.rawRequest(RemoteASCSRobot.Requests.STOP.toTDN());
+			return;
+		}
+		
+		Referenceable<Boolean> success = new Referenceable<Boolean>(null);
+		navigatorThread = storageNavigator.goToStorageCellAsync(RemoteASCSRobot.getRobot(5), 0, success);
+		Thread t = new Thread()
+		{
+			@Override
+			public void run()
+			{
+				while(success.getValue() == null)
+					Thread.yield();
+				
+				if(success.getValue())
+					JOptionPane.showMessageDialog(null, "Success", "At cell storage", JOptionPane.INFORMATION_MESSAGE);
+				else
+					JOptionPane.showMessageDialog(null, "Failed", "Error", JOptionPane.ERROR_MESSAGE);
+				
+				navigatorThread = null;
+			}
+		};
+		t.setPriority(Thread.MIN_PRIORITY);
+		t.start();
+		
 		if(true) return;
 		prepareTest();
 
 		Path path5 = new Path();
 		path5.add(new Waypoint(1490, 200));
 		Path path6 = new Path();
-		//path6.add(new Waypoint(870, 200));
-		path6.add(new Waypoint(1180, 445));
+		path6.add(new Waypoint(870, 200));
+		//path6.add(new Waypoint(1180, 445));
 
 		new PathPerformer(path6, 6);
 		Thread.sleep(100);
 		new PathPerformer(path5, 5);
 	}
-	
+
 	public void prepareTest() throws IOException, InterruptedException
 	{
 		Path path5 = new Path();
@@ -433,9 +611,9 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		PathPerformer performer5 = new PathPerformer(path5, 5);
 		Thread.sleep(100);
 		PathPerformer performer6 = new PathPerformer(path6, 6);
-		while(!Thread.interrupted())
+		while (!Thread.interrupted())
 		{
-			if(performer5.isFinished() && performer6.isFinished())
+			if (performer5.isFinished() && performer6.isFinished())
 				break;
 		}
 	}

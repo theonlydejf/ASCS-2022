@@ -13,9 +13,9 @@ public abstract class GyroRobotHardware extends RobotHardware
 	private Gyroscope _gyro = null;
 	private DirectionFinder _directionFinder = null;
 	
-	public GyroRobotHardware(float wheelDistance, float wheelRadius, boolean reverseLeft, boolean reverseRight)
+	public GyroRobotHardware(float wheelDistance, float wheelRadius, float wheelMultiplier, boolean reverseLeft, boolean reverseRight)
 	{
-		super(wheelDistance, wheelRadius, reverseLeft, reverseRight);
+		super(wheelDistance, wheelRadius, wheelMultiplier, reverseLeft, reverseRight);
 		// TODO Auto-generated constructor stub
 	}
 

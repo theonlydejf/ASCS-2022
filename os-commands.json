@@ -1,0 +1,24 @@
+{
+    "service-name": "OSService",
+    "requests":
+    {
+        "getResources":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ "resources" ]
+        },
+        "getResource":
+        {
+            "params": [ "path" ],
+            "params-types": [ "str" ],
+            "response": [ "resource" ]
+        },
+        "setResource":
+        {
+            "params": [ "path", "value" ],
+            "params-types": [ "str", "any" ],
+            "response": [ ]
+        }
+    }
+}

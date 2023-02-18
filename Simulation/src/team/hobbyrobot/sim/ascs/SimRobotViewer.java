@@ -17,18 +17,20 @@ public class SimRobotViewer extends PaintPanel
 {
 	private Object _robotsLock = new Object();
 	private List<SimRobot> _robots = null;
-	
+	private List<StorageCell> _storageCells;
+
 	private static final Font errFont = new Font(Font.SANS_SERIF, Font.BOLD, 14);
 	private static final Font robotFont = new Font(Font.MONOSPACED, Font.PLAIN, 10);
 	
 	private double _scale = 1;
 	private double _realWidth;
 	
-	public SimRobotViewer(List<SimRobot> robots, double realWidth)
+	public SimRobotViewer(List<SimRobot> robots, List<StorageCell> storageCells, double realWidth)
 	{
 		super();
 		_realWidth = realWidth;
 		_robots = robots;
+		_storageCells = storageCells;
 		addLayer(new Graphics());
 	}
 	
@@ -69,7 +71,32 @@ public class SimRobotViewer extends PaintPanel
 					(int)(x - 	metrics.stringWidth(String.valueOf(id)) / 2 	- 10 * Math.cos(heading_rad)), 
 					(int)(y + 	metrics.getAscent() / 2 						- 10 * Math.sin(heading_rad))
 					);
+			}
+			
+			for(StorageCell cell : _storageCells)
+			{
+				double x = (double) cell.pose.x;
+				double y = (double)  cell.pose.y;
+				double heading = (double) cell.pose.heading;
+				long id = (long) cell.id;
 				
+				double heading_rad = -heading/180 * Math.PI;
+				
+				x *= _scale;
+				y *= _scale;
+				y = (double)SimRobotViewer.this.getHeight() - y;
+				
+				g.setColor(Color.magenta);
+				g.fillRect((int)(x - 5), (int)(y - 5), 10, 10);
+				g.drawLine((int)x, (int)y, (int)(x + 11 * Math.cos(heading_rad)), (int)(y + 11 * Math.sin(heading_rad)));
+				
+				FontMetrics metrics = g.getFontMetrics(robotFont);
+				g.setColor(Color.blue);
+				g.setFont(robotFont);
+				g.drawString(String.valueOf(id), 
+					(int)(x - 	metrics.stringWidth(String.valueOf(id)) / 2 	- 10 * Math.cos(heading_rad)), 
+					(int)(y + 	metrics.getAscent() / 2 						- 10 * Math.sin(heading_rad))
+					);
 			}
 		}
 		

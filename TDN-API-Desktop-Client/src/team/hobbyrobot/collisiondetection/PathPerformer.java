@@ -79,12 +79,12 @@ public class PathPerformer implements RemoteASCSRobotListener
 	public static final int DESTINATION_UNREACHABLE_WAIT_TIMEOUT = 10000;
 	public static double DELTA_A = 0;
 
-	private static CollisionAvoider collisionAvoider;
+	public static CollisionAvoider collisionAvoider;
 	private static LinkedList<PathPerformer> currentPaths = new LinkedList<>();
 
-	public static void initCollisionAvoider(int width, int height)
+	public static void initCollisionAvoider(int width, int height, int[] storageCellIds)
 	{
-		collisionAvoider = new CollisionAvoider(new Dimension(width, height), SAFE_DISTANCE);
+		collisionAvoider = new CollisionAvoider(new Dimension(width, height), SAFE_DISTANCE, storageCellIds);
 	}
 
 	/**
@@ -286,6 +286,18 @@ public class PathPerformer implements RemoteASCSRobotListener
 
 	private LinkedList<Thread> waitThreads = new LinkedList<Thread>();
 
+	public PathPerformer(Pose p, int robotID) throws IOException
+	{
+		this(pathFromPose(p), robotID);
+	}
+	
+	private static Path pathFromPose(Pose p)
+	{
+		Path path = new Path();
+		path.add(new Waypoint(p));
+		return path;
+	}
+	
 	public PathPerformer(Path path, int robotID) throws IOException
 	{
 		_alreadyLimited = false;
@@ -581,9 +593,10 @@ public class PathPerformer implements RemoteASCSRobotListener
 
 				if(_dangerousPerformer._robot.isMoving())
 				{
+					TravelStoppedListener listener = new TravelStoppedListener(_dangerousPerformer._robot);
 					while (!Thread.interrupted())
 					{
-						if (!_dangerousPerformer._robot.isMoving())
+						if (listener.travelStopped)
 							break;
 					}
 				}
@@ -736,5 +749,51 @@ public class PathPerformer implements RemoteASCSRobotListener
 	@Override
 	public void eventReceived(String name, TDNRoot params, Socket client)
 	{
+	}
+	
+	private static class TravelStoppedListener implements RemoteASCSRobotListener
+	{
+		private RemoteASCSRobot _robot;
+		public TravelStoppedListener(RemoteASCSRobot robot)
+		{
+			_robot = robot;
+			_robot.addRobotListener(this);
+		}
+		
+		public boolean travelStopped = false;
+		@Override
+		public void eventReceived(String name, TDNRoot params, Socket client)
+		{
+		}
+
+		@Override
+		public void moveStarted(int id, Move move)
+		{
+		}
+
+		@Override
+		public void moveStopped(int id, Move move)
+		{
+			if(move.getMoveType().equals(Move.MoveType.TRAVEL))
+			{
+				travelStopped = true;
+				_robot.removeRobotListener(this);
+			}
+		}
+
+		@Override
+		public void atWaypoint(int robotID, Waypoint waypoint, Pose pose, int sequence)
+		{
+		}
+
+		@Override
+		public void pathComplete(int robotID, Waypoint waypoint, Pose pose, int sequence)
+		{
+		}
+
+		@Override
+		public void pathInterrupted(int robotID, Waypoint waypoint, Pose pose, int sequence)
+		{
+		}
 	}
 }
