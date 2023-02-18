@@ -414,7 +414,7 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		});
 		box.add(takeBtn);
 		JButton putBtn = new JButton("Put to");
-		takeBtn.addActionListener(e ->
+		putBtn.addActionListener(e ->
 		{
 			Thread t = new Thread(() ->
 			{
@@ -560,7 +560,7 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		//path.add(new Waypoint(300, 300, 90));
 		//new PathPerformer(path, 5);
 		
-		if(navigatorThread != null)
+		/*if(navigatorThread != null)
 		{
 			navigatorThread.interrupt();
 			RemoteASCSRobot.getRobot(5).api.rawRequest(RemoteASCSRobot.Requests.STOP.toTDN());
@@ -588,7 +588,7 @@ public class RobotManagerWindow extends JFrame implements RobotCommanderListener
 		t.setPriority(Thread.MIN_PRIORITY);
 		t.start();
 		
-		if(true) return;
+		if(true) return;*/
 		prepareTest();
 
 		Path path5 = new Path();

@@ -1,6 +1,7 @@
 package team.hobbyrobot.net.api.desktop;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -16,6 +17,7 @@ import team.hobbyrobot.subos.Referenceable;
 import team.hobbyrobot.tdn.base.TDNParsers;
 import team.hobbyrobot.tdn.core.TDNRoot;
 import team.hobbyrobot.tdn.core.TDNValue;
+import lejos.robotics.geometry.Line;
 
 public class StorageNavigator
 {
@@ -55,7 +57,12 @@ public class StorageNavigator
 		if(model == null)
 			return null;
 		
-		Pose p = new Pose((float)model.x, (float)model.y, (float)model.heading);
+		return getApproachPoseFromTagPose((float)model.x, (float)model.y, (float)model.heading);
+	}
+	
+	public static Pose getApproachPoseFromTagPose(float x, float y, float heading)
+	{
+		Pose p = new Pose(x, y, heading);
 		
 		p.moveUpdate(APPROACH_DISTANCE);
 		
@@ -116,9 +123,15 @@ public class StorageNavigator
 		}
 		
 		if(!goToStorageCell(robot, cellID))
+		{
+			_robotsInUse.remove(robot);
 			return false;
+		}
 		
-		return putItem(robot);
+		boolean success = putItem(robot);
+			
+		_robotsInUse.remove(robot);
+		return success;
 	}
 	
 	public boolean takeItemFrom(int cellID) throws IOException
@@ -131,9 +144,15 @@ public class StorageNavigator
 		}
 		
 		if(!goToStorageCell(robot, cellID))
+		{
+			_robotsInUse.remove(robot);
 			return false;
+		}
 		
-		return takeItem(robot);
+		boolean success = takeItem(robot);
+			
+		_robotsInUse.remove(robot);
+		return success;
 	}
 	
 	public boolean goToStorageCell(RemoteASCSRobot robot, int cellID) throws IOException
@@ -247,13 +266,55 @@ public class StorageNavigator
 		return true;
 	}
 	
-	public static Point2D[] getStorageCellBoundingBox(double x, double y, double alpha, double padding)
+	public static ArrayList<Line> getStorageCellBoundingBox(double x, double y, double alpha, double padding)
 	{
-		Point2D[] vertecies = new Point2D[4];
+		ArrayList<Line> out = new ArrayList<Line>();
+		
+		double width = STORAGE_CELL_WIDTH + padding;
+		double height = STORAGE_CELL_HEIGHT + padding;
+		
+		Point2D[] object = getRotatedRect(x, y, width, height, alpha + Math.PI/2);
+		out.addAll(RemoteASCSRobot.getLinesFromPoints(object));
+				
+		//Pose approachPose = getApproachPoseFromTagPose((float)x, (float)y, (float)Math.toDegrees(alpha));
+		//approachPose.moveUpdate(-RemoteASCSRobot.SIZE);
+		
+		//double centerX = (approachPose.getX() + x) / 2;
+		//double centerY = (approachPose.getY() + y) / 2;
+		
+		//Point2D[] block = getRotatedRect(centerX, centerY, RemoteASCSRobot.SIZE * 2, RemoteASCSRobot.SIZE + APPROACH_DISTANCE, alpha + Math.PI/2);
+		//out.addAll(RemoteASCSRobot.getLinesFromPoints(block));
+
+		return out;
+		/*Point2D[] vertecies = new Point2D[4];
 		
 		double width = STORAGE_CELL_WIDTH + padding;
 		double height = STORAGE_CELL_HEIGHT + padding;
 		alpha += Math.PI/2;
+		
+		vertecies[0] = new Point2D.Double(
+			x - (width / 2) * Math.cos(alpha) - (height / 2) * Math.sin(alpha),
+			y - (width / 2) * Math.sin(alpha) + (height / 2) * Math.cos(alpha)
+			);
+		vertecies[1] = new Point2D.Double(
+			x + (width / 2) * Math.cos(alpha) - (height / 2) * Math.sin(alpha),
+			y + (width / 2) * Math.sin(alpha) + (height / 2) * Math.cos(alpha)
+			);
+		vertecies[2] = new Point2D.Double(
+			x - (width / 2) * Math.cos(alpha) + (height / 2) * Math.sin(alpha),
+			y - (width / 2) * Math.sin(alpha) - (height / 2) * Math.cos(alpha)
+			);
+		vertecies[3] = new Point2D.Double(
+			x + (width / 2) * Math.cos(alpha) + (height / 2) * Math.sin(alpha),
+			y + (width / 2) * Math.sin(alpha) - (height / 2) * Math.cos(alpha)
+			);
+		
+		return vertecies;*/
+	}
+	
+	private static Point2D[] getRotatedRect(double x, double y, double width, double height, double alpha)
+	{
+		Point2D[] vertecies = new Point2D[4];
 		
 		vertecies[0] = new Point2D.Double(
 			x - (width / 2) * Math.cos(alpha) - (height / 2) * Math.sin(alpha),

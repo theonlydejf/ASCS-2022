@@ -72,7 +72,7 @@ import team.hobbyrobot.tdn.core.TDNValue;
 public class PathPerformer implements RemoteASCSRobotListener
 {
 	public static final double SMALLEST_UNSKIPPABLE_DISTANCE_SQUARED = 400;
-	public static final double SMALLEST_VALID_DISTANCE_SQUARED = SMALLEST_UNSKIPPABLE_DISTANCE_SQUARED;
+	public static final double SMALLEST_VALID_DISTANCE_SQUARED = SMALLEST_UNSKIPPABLE_DISTANCE_SQUARED * 2;
 	public static final double SMALLEST_TOLERABLE_DISTANCE_SQUARED = 4900;
 	public static final double SAFE_DISTANCE = 30;
 	
@@ -86,7 +86,7 @@ public class PathPerformer implements RemoteASCSRobotListener
 	{
 		collisionAvoider = new CollisionAvoider(new Dimension(width, height), SAFE_DISTANCE, storageCellIds);
 	}
-
+	
 	/**
 	 * Class which can draw all currently active paths and their states
 	 * 
@@ -411,8 +411,10 @@ public class PathPerformer implements RemoteASCSRobotListener
 			Vector D = new Vector(next.x, next.y);
 			float headingStart = (float) thisModel.heading;
 			Float headingEnd = next.isHeadingRequired() ? (float) next.getHeading() : null;
+			System.out.println("--------- 414");
 			_segmentPath = collisionAvoider.getPath(null, A, B, C, D, headingStart, headingEnd,
 				RemoteASCSRobot.SIZE, DELTA_A);
+			System.out.println("--------- 417");
 			_alreadyLimited = false;
 		}
 
@@ -475,6 +477,7 @@ public class PathPerformer implements RemoteASCSRobotListener
 
 					long end = System.currentTimeMillis() + DESTINATION_UNREACHABLE_WAIT_TIMEOUT;
 					boolean close = true;
+					DestinationUnreachableException ex = new DestinationUnreachableException();
 					while (System.currentTimeMillis() <= end && !Thread.interrupted())
 					{
 						try
@@ -492,6 +495,7 @@ public class PathPerformer implements RemoteASCSRobotListener
 						}
 						catch (DestinationUnreachableException e)
 						{
+							ex = e;
 						}
 						catch (InterruptedException e)
 						{
@@ -503,6 +507,7 @@ public class PathPerformer implements RemoteASCSRobotListener
 					{
 						close();
 						System.err.println("Next waypoint is still unreachable! Closing...");
+						ex.printStackTrace();
 						return;
 					}
 
@@ -543,6 +548,19 @@ public class PathPerformer implements RemoteASCSRobotListener
 		if (!move.getMoveType().equals(Move.MoveType.TRAVEL))
 			return;
 		_travelling = true;
+		if(_dangerousPerformer != null && _dangerousPerformer._next != null)
+		{
+			RobotModel otherModel = RemoteASCSRobot.globalCorrector.getRobotModel(_dangerousPerformer._robot.getID());
+			RobotModel thisModel = RemoteASCSRobot.globalCorrector.getRobotModel(_robot.getID());
+		
+			Vector A = new Vector(otherModel.x, otherModel.y);
+			Vector B = new Vector(_dangerousPerformer._next.x, _dangerousPerformer._next.y);
+			Vector C = new Vector(thisModel.x, thisModel.y);
+			Vector D = new Vector(_next.x, _next.y);
+			
+			_segmentPath = collisionAvoider.limitPath(_segmentPath, A, B, C, D, RemoteASCSRobot.SIZE, DELTA_A);
+			System.out.println("---- TADYYY ----");
+		}
 		if (shouldBeLimited())
 			return;
 		if (Double.isInfinite(_segmentPath.travelLimit))
@@ -597,6 +615,8 @@ public class PathPerformer implements RemoteASCSRobotListener
 					while (!Thread.interrupted())
 					{
 						if (listener.travelStopped)
+							break;
+						if(listener.moveStoppedCnt > 3)
 							break;
 					}
 				}
@@ -760,6 +780,7 @@ public class PathPerformer implements RemoteASCSRobotListener
 			_robot.addRobotListener(this);
 		}
 		
+		public int moveStoppedCnt = 0;
 		public boolean travelStopped = false;
 		@Override
 		public void eventReceived(String name, TDNRoot params, Socket client)
@@ -774,6 +795,7 @@ public class PathPerformer implements RemoteASCSRobotListener
 		@Override
 		public void moveStopped(int id, Move move)
 		{
+			moveStoppedCnt++;
 			if(move.getMoveType().equals(Move.MoveType.TRAVEL))
 			{
 				travelStopped = true;

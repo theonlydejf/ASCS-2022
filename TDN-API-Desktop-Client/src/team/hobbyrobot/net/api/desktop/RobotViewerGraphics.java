@@ -71,6 +71,7 @@ public class RobotViewerGraphics implements Paintable, RobotObserverListener
 				{
 					for(Line l : PathPerformer.collisionAvoider.getStaticObstructions())
 					{
+						l.lengthen(60 + 1);
 						g.drawLine((int)(l.x1 * _scale), (int)(l.y1 * _scale), (int)(l.x2 * _scale), (int)(l.y2 * _scale));
 					}
 					continue;

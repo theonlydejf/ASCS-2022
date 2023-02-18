@@ -38,7 +38,7 @@ public class CollisionAvoider
 		_safeDist = safeDistance;
 		_storageCellTags = storageCellTags;
 	}
-
+	
 	public Path getPath(Pose start, Waypoint end, Point2D... robots) throws DestinationUnreachableException
 	{
 		// Update path finder with the current no-go zone
@@ -91,9 +91,6 @@ public class CollisionAvoider
 			c.draw(g);
 		}
 
-		// Calculate the point, at which the robots could collide
-		Vector E = getCollisionPoint(A, B, C, deltaA);
-
 		// Create lines, which represent a no-go zone for the second robot. 
 		// That's destination of the first robot.
 		ArrayList<Line> obstructions = RemoteASCSRobot.getLinesFromPoints(RemoteASCSRobot.getRobotBoundingBox(0, B.cartesian(0), B.cartesian(1)));
@@ -127,20 +124,27 @@ public class CollisionAvoider
 		// TODO Move the no-go zone around the destination of the first robot here.
 		// 		add checking wheter the second robot has enaugh time to go through
 		//		the no-go zone without colliding with the first robot
-		if (E == null)
-			return path;
-		if(A.equals(B))
-			return path;
+		//if (E == null)
+		//	return path;
+		//if(A.equals(B))
+		//	return path;
 
+		return path;
+	}
+	
+	public LimitedPath limitPath(LimitedPath path, Vector A, Vector B, Vector C, Vector D, double robotSize, double deltaA)
+	{
+		PathCollider c = new PathCollider(C, D, robotSize);
+		// Calculate the point, at which the robots could collide
+		Vector E = getCollisionPoint(A, B, C, deltaA);
+		
+		if(E == null)
+			return path;
+		
 		// Calculate a collider for an area, where there is possibility of the two
 		// robots colliding
 		Vector eDelta = B.minus(A).direction().scale(robotSize);
 		PathCollider b = new PathCollider(E.minus(eDelta), E.plus(eDelta), robotSize);
-		if (g != null)
-		{
-			g.setColor(Color.orange);
-			b.draw(g);
-		}
 		
 		// If the first robot doesn't go through the collision area, return the 
 		// found path without limmiting its movement
@@ -187,10 +191,6 @@ public class CollisionAvoider
 		// Index of the waypoint, from which the movement should be limmited
 		int collisionStartIdx = -1;
 
-		if (g != null)
-		{
-			g.setColor(Color.magenta);
-		}
 		for (int i = 0; i < path.size() - 1; i++)
 		{
 			Waypoint current = path.get(i);
@@ -226,11 +226,6 @@ public class CollisionAvoider
 						continue;
 
 					collisionPoints.add(intersection);
-					if (g != null)
-					{
-						g.drawLine((int) collider.x1, (int) collider.y1, (int) collider.x2, (int) collider.y2);
-						drawCross(g, (int) intersection.x, (int) intersection.y);
-					}
 				}
 			}
 
@@ -312,7 +307,7 @@ public class CollisionAvoider
 			if(model == null)
 				continue;
 			
-			obstructions.addAll(RemoteASCSRobot.getLinesFromPoints(StorageNavigator.getStorageCellBoundingBox(model.x, model.y, Math.toRadians(model.heading), RemoteASCSRobot.SIZE)));
+			obstructions.addAll(StorageNavigator.getStorageCellBoundingBox(model.x, model.y, Math.toRadians(model.heading), RemoteASCSRobot.SIZE));
 		}
 		
 		return obstructions;
