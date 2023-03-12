@@ -300,6 +300,7 @@ public class RemoteASCSRobot implements Closeable
 		public static final Request CONTINUE_PATH;
 		public static final Request IS_PATH_COMPLETED;
 		public static final Request GET_REMAINING_PATH_COUNT;
+		public static final Request CORRECT_HORIZONTAL_ERROR;
 		
 		public static final Request GET_POSE;
 		public static final Request SET_SPEED;
@@ -310,6 +311,7 @@ public class RemoteASCSRobot implements Closeable
 		public static final Request SET_POSITION;
 		public static final Request SET_EXPECTED_HEADING;
 		public static final Request GET_EXPECTED_HEADING;
+		public static final Request IS_HORIZONTAL_ERROR_CORRECTED;
 
 		public static final Request REGISTER_MOVE_LISTENER;
 
@@ -348,7 +350,9 @@ public class RemoteASCSRobot implements Closeable
 			SET_EXPECTED_HEADING = 		moveRequests.get("setExpectedHeading");
 			GET_EXPECTED_HEADING = 		moveRequests.get("getExpectedHeading");
 			REGISTER_MOVE_LISTENER = 	moveRequests.get("registerMoveListener");
+			CORRECT_HORIZONTAL_ERROR =	moveRequests.get("correctHorizontalError");
 			
+			IS_HORIZONTAL_ERROR_CORRECTED = moveRequests.get("isHorizontalErrorCorrected");
 			GET_RESOURCES =				osRequests.get("getResources");
 			GET_RESOURCE =				osRequests.get("getResource");
 			SET_RESOURCE =				osRequests.get("setResource");

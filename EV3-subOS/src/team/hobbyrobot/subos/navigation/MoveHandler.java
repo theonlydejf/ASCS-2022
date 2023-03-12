@@ -12,6 +12,7 @@ import lejos.robotics.navigation.Move.MoveType;
 import lejos.utility.Stopwatch;
 import team.hobbyrobot.subos.Resources;
 import team.hobbyrobot.subos.SubOSController;
+import team.hobbyrobot.subos.errorhandling.ErrorLogging;
 import team.hobbyrobot.subos.hardware.GyroRobotHardware;
 import team.hobbyrobot.subos.hardware.RobotHardware;
 import temp.PIDTuner;
@@ -91,7 +92,12 @@ public abstract class MoveHandler implements MoveProvider
 
 		_steeringPID.setMaxIOutput(40);
 	}
-
+	
+	public Handler getMoveHandler()
+	{
+		return moveHandler;
+	}
+	
 	@Override
 	public Move getMovement()
 	{
@@ -114,11 +120,11 @@ public abstract class MoveHandler implements MoveProvider
 	 * @param moveType  {@link MoveType}, that the processor is capable of handling
 	 * @param processor Instance of {@link MoveProcessor}, that can process the desired move type
 	 */
-	protected void registerProcessor(MoveType moveType, MoveProcessor processor)
+	protected void registerDefaultProcessor(MoveType moveType, MoveProcessor processor)
 	{
-		synchronized (moveHandler.processors)
+		synchronized (moveHandler.defaultProcessors)
 		{
-			moveHandler.processors.put(moveType, processor);
+			moveHandler.defaultProcessors.put(moveType, processor);
 		}
 	}
 
@@ -264,14 +270,14 @@ public abstract class MoveHandler implements MoveProvider
 	 */
 	public class Handler extends Thread
 	{
-		//TODO: rename to defaultProcessors
 		/** Map of MoveType to a processor class, that can perform that move */
-		Hashtable<MoveType, MoveProcessor> processors;
+		Hashtable<MoveType, MoveProcessor> defaultProcessors;
 
 		/** Move, that is requested to be handled */
 		private Move _requestedMove;
 		/** Move, that is currently being handled by the controller */
 		private Move _currMove;
+		private MoveProcessor _currProcessor;
 		/**
 		 * Real move, that is currently being handled by the controller (may be limitted by travel or angle
 		 * limits)
@@ -312,7 +318,7 @@ public abstract class MoveHandler implements MoveProvider
 		
 		public Handler()
 		{
-			processors = new Hashtable<>();
+			defaultProcessors = new Hashtable<>();
 			Runtime.getRuntime().addShutdownHook(new Thread()
 			{
 				public void run()
@@ -384,17 +390,22 @@ public abstract class MoveHandler implements MoveProvider
 			return _lastMoveLimited;
 		}
 
-		//TODO: add possibility to to specify a specific processor to use
 		/** Requests a new move and waits, until the current move (if any) is canceled */
-		public void startNewMove(Move move)
+		public void startNewMove(Move move, MoveProcessor processor)
 		{
 			_requestedMove = move;
+			_currProcessor = processor;
 			_moveRequested = true;
 			// Waits until robot stops moving and starts processing the move
 			while (isMoving())// || _moveRequested)
 				Thread.yield();
 		}
 
+		public void startNewMove(Move move)
+		{
+			startNewMove(move, defaultProcessors.get(move.getMoveType()));
+		}
+		
 		/** Stops the current move */
 		public void stopMove()
 		{
@@ -476,7 +487,7 @@ public abstract class MoveHandler implements MoveProvider
 					_currMove.isMoving());
 
 				// Get a processor that is capable of processing the requested move
-				MoveProcessor processor = processors.get(_currMove.getMoveType());
+				MoveProcessor processor = _currProcessor;//processors.get(_currMove.getMoveType());
 				// If no handler was found -> skip the request
 				if (processor == null)
 				{
@@ -518,8 +529,16 @@ public abstract class MoveHandler implements MoveProvider
 					}
 
 					// Step through the handler and if it detected that the move is at the end -> finish the move
-					if (processor.step(_currTargetMove))
+					try
+					{
+						if (processor.step(_currTargetMove))
+							break;						
+					}
+					catch(Exception e)
+					{
+						ErrorLogging.logError("Error when stepping in move processor: " + e.toString());
 						break;
+					}
 				}
 
 				hardware.stopDriveMotors(!_moveRequested);

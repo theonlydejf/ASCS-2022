@@ -51,9 +51,9 @@ def main():
     robot_detector.calibrate_plane()
 
     cv.imshow("img", np.zeros((100, 100)))
-    cv.setWindowProperty("img", cv.WND_PROP_TOPMOST, 1)
+    #cv.setWindowProperty("img", cv.WND_PROP_TOPMOST, 1)
     cv.waitKey(1)
-    cv.setWindowProperty("img", cv.WND_PROP_TOPMOST, 0)
+    #cv.setWindowProperty("img", cv.WND_PROP_TOPMOST, 0)
     cv.setWindowProperty("img", cv.WND_PROP_AUTOSIZE, 0)
     while bridge.isConnected():
         robots, img = robot_detector.detect()

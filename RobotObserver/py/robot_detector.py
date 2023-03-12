@@ -53,7 +53,7 @@ class RobotDetector:
             img = self._get_img()
             self._put_err_text(img, "Press any key to continue...")
             cv.imshow("Waiting...", img)
-            cv.setWindowProperty("Waiting...", cv.WND_PROP_TOPMOST, 1)
+            #cv.setWindowProperty("Waiting...", cv.WND_PROP_TOPMOST, 1)
 
             if time.time() - start >= 2:
                 break

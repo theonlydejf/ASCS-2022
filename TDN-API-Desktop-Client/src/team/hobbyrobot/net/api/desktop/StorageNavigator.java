@@ -174,6 +174,49 @@ public class StorageNavigator
 		if(Thread.currentThread().isInterrupted())
 			return false;
 		
+		RobotModel currModel = RemoteASCSRobot.globalCorrector.getRobotModel(robot.getID());
+		
+		double tanAlpha = Math.tan(Math.toRadians(approachPose.getHeading()));
+		
+		
+		double hError = Math.abs(tanAlpha * currModel.x - currModel.y - tanAlpha * approachPose.getX() + approachPose.getY()) / Math.sqrt(tanAlpha * tanAlpha + 1);
+		
+		TDNRoot correctHDiffRequest = RemoteASCSRobot.Requests.CORRECT_HORIZONTAL_ERROR.toTDN
+		(
+			new TDNValue((float)hError, TDNParsers.FLOAT), 
+			new TDNValue(approachPose.getHeading(), TDNParsers.FLOAT)
+		);
+		Response correctHDiffResponse = new Response(robot.api.rawRequest(correctHDiffRequest));
+		if(!correctHDiffResponse.wasRequestSuccessful())
+			return false;
+		
+		TDNRoot isCorrectionDoneRequest = RemoteASCSRobot.Requests.IS_HORIZONTAL_ERROR_CORRECTED.toTDN();
+		
+		while(!Thread.currentThread().isInterrupted())
+		{
+			try
+			{
+				Thread.sleep(500);
+			}
+			catch (InterruptedException e)
+			{
+				return false;
+			}
+			Response isCorrectionDoneResponse = new Response(robot.api.rawRequest(isCorrectionDoneRequest));
+			if(!isCorrectionDoneResponse.wasRequestSuccessful())
+				return false;
+			TDNValue done = isCorrectionDoneResponse.getData().get(RemoteASCSRobot.Requests.IS_HORIZONTAL_ERROR_CORRECTED.response[0]);
+			if(done == null)
+				return false;
+			if((boolean)done.value)
+				break;
+		}
+		// Interrupted
+		if(Thread.currentThread().isInterrupted())
+			return false;
+		
+		// Position precisely
+		
 		// Get close to the storage cell
 		TDNRoot travel0Request = RemoteASCSRobot.Requests.TRAVEL.toTDN(new TDNValue(APPROACH_DISTANCE * 2, TDNParsers.FLOAT));
 		Response travel0Response = new Response(robot.api.rawRequest(travel0Request));

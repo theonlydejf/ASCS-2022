@@ -7,13 +7,16 @@ import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Hashtable;
 
+import lejos.hardware.Sound;
 import lejos.robotics.localization.PoseProvider;
 import lejos.robotics.navigation.*;
+import lejos.robotics.navigation.Move.MoveType;
 import team.hobbyrobot.ascsvehicle.os.ASCSVehicleHardware;
 import team.hobbyrobot.logging.Logger;
 import team.hobbyrobot.subos.navigation.CompassPilot;
 import team.hobbyrobot.subos.navigation.LimitablePilot;
 import team.hobbyrobot.subos.navigation.Navigator;
+import team.hobbyrobot.subos.navigation.CompassPilot.RotateProcessor;
 import team.hobbyrobot.subos.net.RemoteMoveEventProvider;
 import team.hobbyrobot.net.api.exceptions.*;
 import team.hobbyrobot.net.api.services.AbstractService;
@@ -25,7 +28,7 @@ import team.hobbyrobot.tdn.core.TDNValue;
 public class MovementService extends AbstractService implements MoveListener, NavigationListener
 {
 	private ASCSVehicleHardware hardware;
-	private RotateMoveController pilot;
+	private CompassPilot pilot;
 	private Logger logger;
 	private PoseProvider poseProvider;
 	private Navigator navigator;
@@ -44,7 +47,11 @@ public class MovementService extends AbstractService implements MoveListener, Na
 	@Override
 	public void init()
 	{
-		pilot = hardware.getPilot();
+		RotateMoveController controller = hardware.getPilot();
+		if(!(controller instanceof CompassPilot))
+			throw new IllegalArgumentException("Hardware does not contain CompassPilot!");
+		
+		pilot = (CompassPilot) controller;
 		pilot.addMoveListener(this);
 		
 		poseProvider = hardware.getPoseProvider();
@@ -485,10 +492,104 @@ public class MovementService extends AbstractService implements MoveListener, Na
                         return new TDNRoot();
                     }
                 });
+                
+				put("correctHorizontalError", new RequestInvoker()
+				{
+					@Override
+					public TDNRoot invoke(TDNRoot params) throws RequestParamsException
+					{
+						TDNValue hDiffTDN = params.get("horizontalDiff");
+						if (hDiffTDN == null)
+							throw new RequestParamsException("No horizontalDiff present in the current root", "horizontalDiff");
+
+						TDNValue approachHeadingTDN = params.get("approachHeading");
+						if (approachHeadingTDN == null)
+							throw new RequestParamsException("No approachHeading present in the current root", "approachHeading");
+						
+						correctHorizontalErrorAsync((float)hDiffTDN.value, (float)approachHeadingTDN.value);
+
+						return new TDNRoot();
+					}
+				});
+				
+				put("isHorizontalErrorCorrected", new RequestInvoker()
+				{
+					@Override
+					public TDNRoot invoke(TDNRoot params) throws RequestParamsException
+					{
+						return new TDNRoot().insertValue("isCorrected", new TDNValue(!(correctHorizontalErrorThread != null && correctHorizontalErrorThread.isAlive()), TDNParsers.BOOLEAN));
+					}
+				});
 			}
 		};
 		
 		return requests;
+	}
+	
+	private Thread correctHorizontalErrorThread = null;
+	public void correctHorizontalErrorAsync(final float hDiff, final float approachHeading)
+	{
+		if(correctHorizontalErrorThread != null && correctHorizontalErrorThread.isAlive())
+			return;
+		correctHorizontalErrorThread = new Thread()
+		{
+			@Override
+			public void run()
+			{
+				correctHorizontalError(hDiff, approachHeading);
+			}
+		};
+		correctHorizontalErrorThread.start();
+	}
+	
+	private CompassPilot.RotateProcessor rotateProcessor = null;
+	
+	private boolean rotateToWithRightWheel(double angle, boolean immidiateReturn)
+	{
+		if(rotateProcessor == null)
+		{
+			rotateProcessor = pilot.new RotateProcessor();
+			rotateProcessor.useLeftMotor = false;
+			rotateProcessor.useRightMotor = true;
+		}
+		
+		float head = poseProvider.getPose().getHeading();
+		double diff = angle - head;
+		while (diff > 180)
+			diff = diff - 360;
+		while (diff < -180)
+			diff = diff + 360;
+		if (navigator.isMoving())
+			return false;
+		
+		pilot.getMoveHandler().startNewMove(
+			new Move
+			(
+				MoveType.ROTATE, 
+				0, 
+				(float) diff, 
+				(float) pilot.getLinearSpeed(), 
+				(float) pilot.getAngularSpeed(), 
+				pilot.isMoving()
+			),
+			rotateProcessor
+		);
+		if (immidiateReturn)
+			return true;
+		
+		while (!pilot.isMoving())
+			Thread.yield();
+		while (pilot.isMoving())
+			Thread.yield();
+		
+		return true;
+	}
+	
+	public void correctHorizontalError(float hDiff, float approachHeading)
+	{
+		rotateToWithRightWheel(approachHeading + 90, false);		
+		pilot.travel(hDiff);
+		rotateToWithRightWheel(approachHeading, false);
 	}
 
 	@Override

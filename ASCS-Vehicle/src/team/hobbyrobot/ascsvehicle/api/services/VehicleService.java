@@ -29,7 +29,7 @@ import team.hobbyrobot.tdn.core.TDNValue;
 public class VehicleService extends AbstractService
 {
 	private ASCSVehicleHardware hardware;
-	private RotateMoveController _pilot;
+	private CompassPilot _pilot;
 
 	public VehicleService(ASCSVehicleHardware hardware)
 	{
@@ -40,7 +40,11 @@ public class VehicleService extends AbstractService
 	@Override
 	public void init()
 	{
-		_pilot = hardware.getPilot();
+		RotateMoveController controller = hardware.getPilot();
+		if(!(controller instanceof CompassPilot))
+			throw new IllegalArgumentException("Hardware does not contain CompassPilot!");
+		
+		_pilot = (CompassPilot) controller;
 		super.init();
 	}
 

@@ -50,8 +50,8 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 
 		_rotateProcessor = new RotateProcessor();
 		_travelProcessor = new TravelProcessor();
-		registerProcessor(MoveType.ROTATE, _rotateProcessor);
-		registerProcessor(MoveType.TRAVEL, _travelProcessor);
+		registerDefaultProcessor(MoveType.ROTATE, _rotateProcessor);
+		registerDefaultProcessor(MoveType.TRAVEL, _travelProcessor);
 
 		_linearSpeed = 100;
 		_angularSpeed = 100;
@@ -325,6 +325,9 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 		public float minSpeed;
 		/** Constant used for accelerating */
 		public float accelConst;
+		
+		public boolean useLeftMotor = true;
+		public boolean useRightMotor = true;
 
 		/**
 		 * If true, parameters are reseted to defaults from the current instance of
@@ -353,15 +356,15 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			{
 				//_pid = new PIDTuner(.8, .0001, 0, 0, 1234);
 				//TODO: calibrate and remove tuner
-				_pid = PIDTuner.createPIDTunerFromRscs("compassRotate", 1234);
+				//_pid = PIDTuner.createPIDTunerFromRscs("compassRotate", 1234);
+				_pid = PID.createPIDFromRscs("compassRotate");
 				//_pid.setName("compassRotate");
 				//_pid.verbal = true;
-				((PIDTuner) _pid).setAutoSave(true);
+				//((PIDTuner) _pid).setAutoSave(true);
 			}
-			catch (IOException e)
+			catch (Exception e)
 			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				Logger.main.log("Error when creating pid: " + e.toString());
 			}
 
 			_pidSw = new Stopwatch();
@@ -385,7 +388,7 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			if(Math.abs(error) > ENDING_CONDITION_TOLERANCE)
 				lastTimeOutOfRange = System.currentTimeMillis();
 			// True, if the move has completed
-			Logger.main.log("Rotate time diff: " + (System.currentTimeMillis() - lastTimeOutOfRange));
+			//Logger.main.log("Rotate time diff: " + (System.currentTimeMillis() - lastTimeOutOfRange));
 			boolean rotateCompleted = (System.currentTimeMillis() - lastTimeOutOfRange) >= ENDING_CONDITION_TIME; //(targetMove.getAngleTurned() - travelledAng)
 				// * Math.signum(targetMove.getAngleTurned()) <= 0; //Math.round(travelledAng) == Math.round(targetMove.getAngleTurned());
 			
@@ -426,8 +429,28 @@ public class CompassPilot extends MoveHandler implements RotateMoveController, L
 			else
 				_pid.setErrorSum(0); // If accelerating -> reset integral
 
+			//Logger.main.log("Curr angular speed: " + currSpeed);
+			
 			// Update motors
-			controlMotors((int) currSpeed, 100 * Math.signum(decelSpeed), true);
+			if(useLeftMotor && useRightMotor)
+			{
+				controlMotors((int) currSpeed, 100 * Math.signum(decelSpeed), true);
+				//Logger.main.log("Rotate both motors");
+			}
+			else if(useLeftMotor)
+			{
+				hardware.setLeftDrivePower((int)(currSpeed * -Math.signum(decelSpeed)));
+				hardware.startLeftDriveMotor(true);
+				hardware.stopRightDriveMotor(true);
+				//Logger.main.log("Rotate left motor");
+			}
+			else
+			{
+				hardware.setRightDrivePower((int)(currSpeed * Math.signum(decelSpeed)));
+				hardware.startRightDriveMotor(true);
+				hardware.stopLeftDriveMotor(true);
+				//Logger.main.log("Rotate right motor");
+			}
 
 			return rotateCompleted;
 		}

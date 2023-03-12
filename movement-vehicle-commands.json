@@ -121,6 +121,18 @@
             "params": [ "port", "id" ],
             "params-types": [ "int", "int" ],
             "response": [ ]
+        },
+        "correctHorizontalError":
+        {
+            "params": [ "horizontalDiff", "approachHeading" ],
+            "params-types": [ "flt", "flt" ],
+            "response": [ ]
+        },
+        "isHorizontalErrorCorrected":
+        {
+            "params": [ ],
+            "params-types": [ ],
+            "response": [ "isCorrected" ]
         }
     }
 }

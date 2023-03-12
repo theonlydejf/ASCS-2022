@@ -50,7 +50,7 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 	private JList<String> _eventList;
 	private Thread _rmLogReaderThread;
 
-	/*public static void main(String[] args) throws UnknownHostException, IOException
+	public static void main(String[] args) throws UnknownHostException, IOException
 	{
 		Logger l = new Logger();
 		l.registerEndpoint(new PrintWriter(System.out));
@@ -77,9 +77,10 @@ public class RobotCommanderWindow extends JFrame implements RemoteASCSRobotListe
 		}));
 
 		RemoteASCSRobot.initEventListenerServer(5555, l);
-		RobotCommanderWindow w = new RobotCommanderWindow(new RemoteASCSRobot(0, "localhost", 1111, 2222, 3333, l));
+		System.out.println("Connecting to robot...");
+		RobotCommanderWindow w = new RobotCommanderWindow(new RemoteASCSRobot(0, "192.168.1.100", 1111, 2222, 3333, l));
 		w.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-	}*/
+	}
 
 	public RobotCommanderWindow(RemoteASCSRobot robot)
 	{
